@@ -1,0 +1,19 @@
+{
+  "canvas": "#121316",
+  "textPrimary": "#DEDEDF",
+  "textSecondary": "#909197",
+  "textMuted": "#595B61",
+  "bookMark": "#B8C9DB",
+  "button": "#292B2F",
+  "titleSize": 29,
+  "subtitleSize": 14,
+  "detailSize": 11,
+  "markSize": 76,
+  "emptyOffset": -8,
+  "hudWidth": 680,
+  "hudRadius": 11,
+  "hudInset": 12,
+  "hudHideSeconds": 2,
+  "markLeft": [[0.48, 0.2], [0.14, 0.12], [0.14, 0.75], [0.48, 0.84]],
+  "markRight": [[0.53, 0.2], [0.87, 0.12], [0.87, 0.75], [0.53, 0.84]]
+}

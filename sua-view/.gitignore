@@ -1,0 +1,23 @@
+# Only reviewed source and documentation enter the monorepo.
+/*
+!/.gitignore
+!/Cargo.toml
+!/Cargo.lock
+!/src/
+!/include/
+!/native/
+!/assets/
+!/scripts/
+!/docs/
+/ref/
+/local/
+/target/
+/dist/
+.DS_Store
+.env*
+!.env.example
+!.env.sample
+*.key
+*.pem
+
+!/README.md

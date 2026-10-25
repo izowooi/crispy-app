@@ -1,0 +1,11 @@
+/target/
+/dist/
+.DS_Store
+
+/.tools/
+
+# 원본 분석·로컬 측정 자료는 private 저장소에도 업로드하지 않는다.
+/docs/rea-evidence/
+/docs/benchmark-raw/
+/docs/analysis-evidence.json
+/docs/native-evidence.json

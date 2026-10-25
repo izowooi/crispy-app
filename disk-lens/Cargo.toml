@@ -1,0 +1,23 @@
+[package]
+name = "disk-lens"
+version = "1.0.0"
+edition = "2024"
+
+[features]
+console = []
+
+[dependencies]
+eframe = { version = "0.33", default-features = false, features = ["default_fonts", "glow", "accesskit"] }
+libc = "0.2"
+rfd = { version = "0.17", default-features = false }
+unicode-normalization = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Globalization", "Win32_System_IO", "Win32_System_Ioctl"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+lto = "thin"
+strip = true

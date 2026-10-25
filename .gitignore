@@ -1,0 +1,11 @@
+# Credentials and local files
+.env*
+!.env.example
+!.env.sample
+*.key
+*.pem
+.DS_Store
+**/target/
+**/dist/
+**/local/
+**/ref/
