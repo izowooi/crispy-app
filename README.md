@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | [Disk Lens](disk-lens/) | 디스크 사용량을 시각화하는 Rust 앱 | 1.0.0 |
 | [Sua View](sua-view/) | 로컬 이미지·만화 압축 파일 뷰어 | 0.1.0 |
+| [Obsidian Disk](obsidian-disk/) | CrystalDiskMark 기본 테스트를 Rust로 재구현한 Windows 디스크 벤치마크 | 0.1.0 (개발) |
 
 [Releases](https://github.com/izowooi/crispy-app/releases)에서 macOS Apple Silicon 및 Windows x64 빌드를 받을 수 있습니다. Windows ZIP을 모두 압축 해제한 뒤 실행하세요. SuaView는 우클릭 메뉴의 **탐색기 F3 연결 켜기**로 폴더·ZIP 바로 열기를 활성화합니다. macOS Finder에서는 **⇧⌘J**를 사용합니다.
 
