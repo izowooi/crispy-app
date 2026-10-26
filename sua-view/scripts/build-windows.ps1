@@ -22,10 +22,13 @@ try {
     New-Item -ItemType Directory -Force -Path $out | Out-Null
     & "$framework\csc.exe" /nologo /target:winexe /platform:x64 /optimize+ /utf8output "/out:$out\SuaView.exe" '/win32manifest:native\windows\app.manifest' "/reference:$wpf\PresentationCore.dll" "/reference:$wpf\PresentationFramework.dll" "/reference:$wpf\WindowsBase.dll" /reference:System.Xaml.dll /reference:System.Windows.Forms.dll /reference:System.Web.Extensions.dll '/resource:assets\ReaderTheme.json,SuaView.ReaderTheme.json' '/resource:native\windows\ReaderStyles.xaml,SuaView.ReaderStyles.xaml' 'native\windows\SuaView.cs' 'native\windows\Appearance.cs' 'native\windows\ReaderChrome.cs'
     if ($LASTEXITCODE) { throw 'Windows UI build failed.' }
+    & "$framework\csc.exe" /nologo /target:winexe /platform:x64 /optimize+ "/out:$out\SuaViewF3.exe" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:Microsoft.CSharp.dll 'native\windows\ExplorerHotkey.cs'
+    if ($LASTEXITCODE) { throw 'Explorer helper build failed.' }
     Copy-Item -LiteralPath 'target\x86_64-pc-windows-msvc\release\sua_view_core.dll' -Destination $out
     Copy-Item -LiteralPath 'target\x86_64-pc-windows-msvc\release\sua-view-engine.exe' -Destination $out
     Copy-Item -LiteralPath 'native\windows\SuaView.exe.config' -Destination $out
     Copy-Item -LiteralPath 'docs\WINDOWS.md' -Destination "$out\README.txt"
+    Copy-Item -LiteralPath '..\LICENSE' -Destination "$out\LICENSE.txt"
     $metadataText = & $cargoPath metadata --locked --offline --filter-platform x86_64-pc-windows-msvc --format-version 1
     if ($LASTEXITCODE) { throw 'Cannot read dependency license metadata.' }
     $metadata = $metadataText | ConvertFrom-Json
@@ -43,7 +46,7 @@ try {
     }
     [IO.File]::WriteAllText("$out\THIRD-PARTY-NOTICES.txt", $notices.ToString(), [Text.Encoding]::UTF8)
     $zip = Join-Path (Get-Location) 'dist\Sua-View-0.1.0-windows-x64.zip'
-    $assets = @('SuaView.exe', 'SuaView.exe.config', 'sua_view_core.dll', 'sua-view-engine.exe', 'README.txt', 'THIRD-PARTY-NOTICES.txt') | ForEach-Object { Join-Path $out $_ }
+    $assets = @('SuaView.exe', 'SuaViewF3.exe', 'SuaView.exe.config', 'sua_view_core.dll', 'sua-view-engine.exe', 'README.txt', 'LICENSE.txt', 'THIRD-PARTY-NOTICES.txt') | ForEach-Object { Join-Path $out $_ }
     Compress-Archive -LiteralPath $assets -DestinationPath $zip -Force
     # Use .NET directly: a Windows PowerShell child can inherit PowerShell 7's
     # module search path in CI, where Get-FileHash may not be available.

@@ -171,6 +171,8 @@ internal sealed partial class Viewer
     ContextMenu BuildOptions()
     {
         var menu = new ContextMenu();
+        AddOption(menu, "탐색기 F3 연결 켜기", "", delegate { System.Diagnostics.Process.Start(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SuaViewF3.exe"), "--enable"); }, null);
+        AddOption(menu, "탐색기 F3 연결 끄기", "", delegate { System.Diagnostics.Process.Start(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SuaViewF3.exe"), "--disable"); }, null);
         AddOption(menu, "다른 책 열기…", "Ctrl+O", OpenDialog, null);
         AddOption(menu, "이미지 폴더 열기…", "Ctrl+Shift+O", OpenFolder, null);
         menu.Items.Add(new Separator());
