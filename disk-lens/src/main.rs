@@ -658,11 +658,8 @@ fn main() -> eframe::Result {
         .with_min_inner_size([1000.0, 650.0]);
     #[cfg(windows)]
     let viewport = viewport.with_icon(
-        eframe::icon_data::from_png_bytes(include_bytes!(concat!(
-            env!("OUT_DIR"),
-            "/disk-lens.ico.png"
-        )))
-        .expect("Generated app icon is valid PNG"),
+        eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon.png"))
+            .expect("App icon is valid PNG"),
     );
     eframe::run_native(
         APP_NAME,

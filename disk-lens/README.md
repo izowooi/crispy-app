@@ -20,18 +20,18 @@
 | 2 | [디스크나 폴더를 골라 스캔합니다](#2-스캔하기) | 몇 초 ~ 몇 분 |
 | 3 | [큰 네모부터 눌러 봅니다](#3-결과-보기) | — |
 
-**받는 곳: [DiskLens 1.0.1 다운로드](https://github.com/izowooi/crispy-app/releases/tag/disk-lens-v1.0.1)**
+**받는 곳: [DiskLens 1.0.2 다운로드](https://github.com/izowooi/crispy-app/releases/tag/disk-lens-v1.0.2)**
 
 | 내 컴퓨터 | 받을 파일 |
 |---|---|
-| Mac (Apple Silicon — M1 이후, macOS 12 이상) | `DiskLens-1.0.1-macOS-arm64.zip` |
-| Windows 10 / 11 (64비트) | `DiskLens-1.0.1-windows-x64.zip` |
+| Mac (Apple Silicon — M1 이후, macOS 12 이상) | `DiskLens-1.0.2-macOS-arm64.zip` |
+| Windows 10 / 11 (64비트) | `DiskLens-1.0.2-windows-x64.zip` |
 
 ## 1. 설치
 
 ### macOS
 
-1. 위 다운로드 페이지에서 `DiskLens-1.0.1-macOS-arm64.zip` 을 받습니다.
+1. 위 다운로드 페이지에서 `DiskLens-1.0.2-macOS-arm64.zip` 을 받습니다.
 2. 다운로드 폴더에서 zip 을 더블클릭해 풉니다. `DiskLens` 앱이 나옵니다.
 3. `DiskLens` 를 **응용 프로그램** 폴더로 끌어다 놓고, 거기서 더블클릭합니다.
 4. **처음 한 번만** macOS 가 실행을 막습니다. *"'DiskLens'을(를) 열지 않음"* 창이 뜨면 **완료** 를 누릅니다. **휴지통으로 이동은 누르지 않습니다.**
@@ -60,7 +60,7 @@
 
 ### Windows
 
-1. 위 다운로드 페이지에서 `DiskLens-1.0.1-windows-x64.zip` 을 받습니다.
+1. 위 다운로드 페이지에서 `DiskLens-1.0.2-windows-x64.zip` 을 받습니다.
 2. zip 을 우클릭 → **압축 풀기** 로 풉니다. 푼 폴더를 원하는 곳(예: `문서\DiskLens`)에 둡니다.
 3. 폴더 안의 `DiskLens.exe` 를 더블클릭합니다.
 4. *"Windows 의 PC 보호"* 파란 창이 뜨면 **추가 정보** → **실행** 을 누릅니다 (코드 서명이 없는 프로그램이라 처음 한 번 나오는 안내입니다).
@@ -227,7 +227,7 @@ cargo clippy --locked --all-targets -- -D warnings
 
 - `package.sh` 는 Xcode Command Line Tools, `rustup target add x86_64-pc-windows-gnu`, `brew install mingw-w64` 가 필요합니다.
 - Windows 에서 직접 빌드하는 방법은 [WINDOWS.md](WINDOWS.md)에 있습니다.
-- 아이콘 원본은 `assets/disk-lens.svg` 하나입니다. 앱 아이콘은 빌드할 때 여기서 만듭니다.
+- 아이콘 원본은 `assets/disk-lens.svg` 하나입니다. 고친 뒤 `swift scripts/make-icon.swift --assets` 를 실행하면 Windows 용 ico 와 README 용 png 가 다시 만들어집니다. Mac 앱 아이콘은 `bundle.sh` 가 만듭니다.
 
 ## 라이선스
 

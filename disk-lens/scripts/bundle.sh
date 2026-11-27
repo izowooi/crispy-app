@@ -8,7 +8,7 @@ test -n "$version"
 app="dist/DiskLens.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/en.lproj" "$app/Contents/Resources/ko.lproj"
-swift scripts/make-icon.swift dist/DiskLens.iconset assets/disk-lens.svg
+swift scripts/make-icon.swift dist/DiskLens.iconset
 cp assets/disk-lens.svg "$app/Contents/Resources/DiskLens.svg"
 iconutil --convert icns --output "$app/Contents/Resources/DiskLens.icns" dist/DiskLens.iconset
 cp target/release/disk-lens "$app/Contents/MacOS/disk-lens"

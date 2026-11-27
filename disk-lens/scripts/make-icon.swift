@@ -1,77 +1,50 @@
 #!/usr/bin/swift
+// assets/disk-lens.svg → macOS iconset, assets/disk-lens.ico, assets/icon.png
+// 사용법 (disk-lens 폴더에서, macOS 기본 도구만 사용):
+//   swift scripts/make-icon.swift <iconset 폴더>   앱 번들용 iconset
+//   swift scripts/make-icon.swift --assets         저장소에 넣어 두는 ico 와 png 를 다시 만든다
 import AppKit
-import Foundation
 
-// The editable SVG is the only artwork source. This small renderer supports its
-// deliberately flat rect/circle/line vocabulary without external dependencies.
-struct Element { let kind: String; let attributes: [String: String] }
-final class SVG: NSObject, XMLParserDelegate {
-    var elements: [Element] = []
-    func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String]) {
-        if ["rect", "circle", "line"].contains(name) { elements.append(Element(kind: name, attributes: attributes)) }
-    }
+guard let svg = NSImage(contentsOf: URL(fileURLWithPath: "assets/disk-lens.svg")) else {
+    fatalError("assets/disk-lens.svg 를 읽지 못했습니다. disk-lens 폴더에서 실행하세요.")
 }
-func color(_ value: String) -> NSColor? {
-    guard value.hasPrefix("#"), let rgb = UInt32(value.dropFirst(), radix: 16) else { return nil }
-    return NSColor(srgbRed: CGFloat((rgb >> 16) & 255)/255, green: CGFloat((rgb >> 8) & 255)/255, blue: CGFloat(rgb & 255)/255, alpha: 1)
-}
-// 사용법: make-icon.swift [iconset 폴더] [svg]  또는  make-icon.swift --ico <출력.ico> [svg]
-var arguments = Array(CommandLine.arguments.dropFirst())
-let ico = arguments.first == "--ico"
-if ico { arguments.removeFirst() }
-let output = arguments.first ?? "dist/DiskLens.iconset"
-let source = arguments.dropFirst().first ?? "assets/disk-lens.svg"
-let svg = SVG()
-let parser = XMLParser(data: try Data(contentsOf: URL(fileURLWithPath: source)))
-parser.delegate = svg
-guard parser.parse(), !svg.elements.isEmpty else { fatalError("Invalid SVG: \(source)") }
-func render(size: Int) -> Data {
-    guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0), let context = NSGraphicsContext(bitmapImageRep: bitmap) else { fatalError("Cannot create icon bitmap") }
+
+func png(_ size: Int) -> Data {
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8,
+                               samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                               colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+    rep.size = NSSize(width: size, height: size)
     NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = context
-    context.cgContext.scaleBy(x: CGFloat(size)/1024, y: CGFloat(size)/1024)
-    context.cgContext.translateBy(x: 0, y: 1024)
-    context.cgContext.scaleBy(x: 1, y: -1)
-    for element in svg.elements {
-        let a = element.attributes
-        func n(_ key: String) -> CGFloat { CGFloat(Double(a[key] ?? "0") ?? 0) }
-        let path: NSBezierPath
-        switch element.kind {
-        case "rect": path = NSBezierPath(roundedRect: NSRect(x: n("x"), y: n("y"), width: n("width"), height: n("height")), xRadius: n("rx"), yRadius: n("rx"))
-        case "circle": path = NSBezierPath(ovalIn: NSRect(x: n("cx")-n("r"), y: n("cy")-n("r"), width: n("r")*2, height: n("r")*2))
-        default:
-            path = NSBezierPath(); path.move(to: NSPoint(x: n("x1"), y: n("y1"))); path.line(to: NSPoint(x: n("x2"), y: n("y2")))
-        }
-        if let fill = color(a["fill"] ?? "none") { fill.setFill(); path.fill() }
-        if let stroke = color(a["stroke"] ?? "none") {
-            stroke.setStroke(); path.lineWidth = n("stroke-width")
-            if a["stroke-linecap"] == "round" { path.lineCapStyle = .round }
-            path.stroke()
-        }
-    }
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    NSGraphicsContext.current?.imageInterpolation = .high
+    svg.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
     NSGraphicsContext.restoreGraphicsState()
-    guard let data = bitmap.representation(using: .png, properties: [:]) else { fatalError("PNG encoding failed") }
-    return data
+    return rep.representation(using: .png, properties: [:])!
 }
-if ico {
-    // Windows 용: PNG 를 그대로 담은 ICO 와, 창 아이콘으로 쓰는 256px PNG("<출력>.png").
-    let sizes = [16, 32, 48, 64, 128, 256]
-    let images = sizes.map(render)
+
+let argument = CommandLine.arguments.dropFirst().first ?? "dist/DiskLens.iconset"
+if argument == "--assets" {
+    // Windows 실행 파일에 넣는 ico. Windows 에서는 SVG 를 그릴 도구가 없어 만든 결과를 저장소에 둔다.
+    let sizes = [16, 20, 24, 32, 40, 48, 64, 256]
+    let images = sizes.map(png)
     func le<T: FixedWidthInteger>(_ value: T) -> Data { withUnsafeBytes(of: value.littleEndian) { Data($0) } }
-    var file = le(UInt16(0)) + le(UInt16(1)) + le(UInt16(images.count))
-    var offset = 6 + 16 * images.count
+    var ico = le(UInt16(0)) + le(UInt16(1)) + le(UInt16(sizes.count))
+    var offset = 6 + 16 * sizes.count
     for (size, image) in zip(sizes, images) {
-        let dimension = UInt8(size == 256 ? 0 : size)
-        file += Data([dimension, dimension, 0, 0]) + le(UInt16(1)) + le(UInt16(32)) + le(UInt32(image.count)) + le(UInt32(offset))
+        let side = UInt8(size == 256 ? 0 : size)
+        ico += Data([side, side, 0, 0]) + le(UInt16(1)) + le(UInt16(32)) + le(UInt32(image.count)) + le(UInt32(offset))
         offset += image.count
     }
-    for image in images { file += image }
-    try file.write(to: URL(fileURLWithPath: output))
-    try images[5].write(to: URL(fileURLWithPath: output + ".png"))
+    images.forEach { ico += $0 }
+    try ico.write(to: URL(fileURLWithPath: "assets/disk-lens.ico"))
+    // README 와 Windows 창 아이콘
+    try png(512).write(to: URL(fileURLWithPath: "assets/icon.png"))
+    print("만들었습니다: assets/disk-lens.ico, assets/icon.png")
 } else {
-    try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
-    for points in [16, 32, 128, 256, 512] {
-        try render(size: points).write(to: URL(fileURLWithPath: output).appendingPathComponent("icon_\(points)x\(points).png"))
-        try render(size: points*2).write(to: URL(fileURLWithPath: output).appendingPathComponent("icon_\(points)x\(points)@2x.png"))
+    let iconset = URL(fileURLWithPath: argument)
+    try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+    for base in [16, 32, 128, 256, 512] {
+        try png(base).write(to: iconset.appendingPathComponent("icon_\(base)x\(base).png"))
+        try png(base * 2).write(to: iconset.appendingPathComponent("icon_\(base)x\(base)@2x.png"))
     }
 }

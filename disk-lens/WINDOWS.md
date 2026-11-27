@@ -38,7 +38,7 @@ cargo run --locked --release --features console -- --scan 'D:\Example'
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bundle-windows.ps1
 ```
 
-마지막 명령은 `dist/DiskLens-<버전>-windows-x64.zip`과 SHA-256 파일을 만듭니다. GUI 실행 파일은 콘솔 창을 열지 않고, CLI 실행 파일은 표준 출력과 종료 코드를 제공합니다. 아이콘은 macOS와 같은 `assets/disk-lens.svg`에서 생성합니다. PowerShell 실행 정책은 해당 프로세스에만 적용하며 시스템 설정은 변경하지 않습니다.
+마지막 명령은 `dist/DiskLens-<버전>-windows-x64.zip`과 SHA-256 파일을 만듭니다. GUI 실행 파일은 콘솔 창을 열지 않고, CLI 실행 파일은 표준 출력과 종료 코드를 제공합니다. 아이콘은 저장소에 들어 있는 `assets/disk-lens.ico`를 씁니다(원본 `assets/disk-lens.svg`에서 macOS로 만든 것). PowerShell 실행 정책은 해당 프로세스에만 적용하며 시스템 설정은 변경하지 않습니다.
 
 ## 집계 범위
 

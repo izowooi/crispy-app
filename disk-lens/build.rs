@@ -3,33 +3,10 @@ fn main() {
     if std::env::var_os("CARGO_CFG_WINDOWS").is_none() {
         return;
     }
-    println!("cargo:rerun-if-changed=assets/disk-lens.svg");
-    println!("cargo:rerun-if-changed=scripts/make-icon.ps1");
-    println!("cargo:rerun-if-changed=scripts/make-icon.swift");
-    let icon = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("disk-lens.ico");
-    let status = if cfg!(windows) {
-        let mut command = std::process::Command::new("powershell.exe");
-        command.args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            "scripts/make-icon.ps1",
-            "-Output",
-        ]);
-        #[cfg(windows)]
-        std::os::windows::process::CommandExt::creation_flags(&mut command, 0x08000000);
-        command.arg(&icon).status()
-    } else {
-        std::process::Command::new("swift")
-            .args(["scripts/make-icon.swift", "--ico"])
-            .arg(&icon)
-            .status()
-    }
-    .expect("Run icon renderer");
-    assert!(status.success(), "Windows icon rendering failed");
+    // ico 는 `swift scripts/make-icon.swift --assets` 로 미리 만들어 저장소에 둔다.
+    println!("cargo:rerun-if-changed=assets/disk-lens.ico");
     winresource::WindowsResource::new()
-        .set_icon(icon.to_str().expect("UTF-8 build path"))
+        .set_icon("assets/disk-lens.ico")
         .set("ProductName", "DiskLens")
         .set("FileDescription", "DiskLens disk space visualizer")
         .compile()
