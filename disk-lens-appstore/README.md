@@ -1,14 +1,14 @@
 # DiskLens — Mac App Store 판
 
-[DiskLens](../disk-lens/) 를 Mac App Store 에 올리기 위한 샌드박스 빌드입니다. 본래판의 코드를 그대로 가져와 샌드박스에서 쓸 수 없는 기능만 뺐습니다. 두 판은 코드를 공유하지 않고 각각 고칩니다.
+[DiskLens](../disk-lens/) 를 Mac App Store 에 올리기 위한 샌드박스 빌드입니다. 직접 다운로드판의 코드를 그대로 가져와 샌드박스에서 쓸 수 없는 기능만 뺐습니다. 두 판은 코드를 공유하지 않고 각각 고칩니다.
 
-## 본래판과 다른 점
+## 직접 다운로드판과 다른 점
 
-| | 본래판 (`disk-lens`) | 스토어판 (여기) |
+| | 직접 다운로드판 (`disk-lens`) | App Store 판 (여기) |
 |---|---|---|
 | 배포 | GitHub 릴리스 (macOS, Windows) | Mac App Store (macOS 만) |
 | 번들 ID | `local.jongwoo.disklens` | `com.zowoo.app.disklens` |
-| 읽을 수 있는 곳 | 어디든 | 사용자가 폴더 선택 창에서 직접 고른 곳만 |
+| 읽을 수 있는 곳 | 어디든 (보호된 폴더는 전체 디스크 접근 권한으로) | 사용자가 폴더 선택 창에서 직접 고른 곳만 |
 | 디스크 전체 | "디스크 스캔" 을 누르면 바로 | "디스크 선택…" → 열린 창에서 **열기** |
 | 전체 디스크 접근 권한 안내 | 있음 | 없음 (샌드박스에서는 쓸 수 없음) |
 | 지난번 폴더 기억 | 있음 | 없음. 앱을 켤 때마다 다시 고릅니다 |
@@ -41,6 +41,8 @@ open dist/DiskLens.app
 4. App Store Connect 에 넣을 문구, 스크린샷, 미리보기 영상은 [`store/`](store/) 에 있습니다.
 
 배포용 서명으로 만든 앱은 내 Mac 에서 바로 실행되지 않습니다(스토어를 거쳐야 실행됩니다). 동작 확인은 위의 임시 서명 빌드로 합니다.
+
+프로파일은 Xcode → Settings → Accounts → Download Manual Profiles 로 받으면 `~/Library/Developer/Xcode/UserData/Provisioning Profiles/` 에 들어옵니다. 그중 Mac App Store 용(`disklens_release`)을 `PROFILE` 에 줍니다.
 
 ## 개발
 

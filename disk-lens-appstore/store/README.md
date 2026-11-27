@@ -157,7 +157,7 @@ The app is sandboxed and uses only com.apple.security.files.user-selected.read-o
 
 - 1920 × 1080, 30fps, H.264, 27초(허용 15~30초), 무음 스테레오 AAC.
 - 내용: 트리맵 → 폴더 안으로 두 번 → 뒤로 → 파일 선택 → 방사형 차트로 전환 → 고리를 눌러 안으로 → 가운데를 눌러 위로.
-- 스토어판 앱을 샌드박스에서 실행해 창을 녹화한 것입니다. 원본은 `preview/raw-window.mov`, 다시 만들 때는 `./store/make-preview.sh`.
+- App Store 판 앱을 샌드박스에서 실행해 창을 녹화한 것입니다. 원본은 `preview/raw-window.mov`, 다시 만들 때는 `./store/make-preview.sh`.
 - 올린 뒤 App Store Connect 에서 **포스터 프레임**(재생 전에 보이는 정지 화면)을 고를 수 있습니다. 트리맵이 꽉 찬 첫 장면을 권합니다.
 - 처리에 최대 24시간이 걸릴 수 있고, 영상도 심사 대상입니다.
 
@@ -173,6 +173,6 @@ The app is sandboxed and uses only com.apple.security.files.user-selected.read-o
 | `ko-4-details.png` | 큰 파일이 어디 있는지 바로 |
 | `ko-5-welcome.png` | 직접 고른 폴더만, 읽기만 |
 
-- 스토어판 앱의 실제 화면을 Retina 로 찍은 것입니다(`captures/`). 개인 폴더가 나오지 않도록 가짜 파일로 만든 `내 자료` 폴더를 스캔했습니다.
+- App Store 판 앱의 실제 화면을 Retina 로 찍은 것입니다(`captures/`). 개인 폴더가 나오지 않도록 가짜 파일로 만든 `내 자료` 폴더를 스캔했습니다.
 - 화면이 바뀌면 `captures/` 의 그림을 바꾸고 `python3 store/make-screenshots.py` 를 실행합니다.
 - 영어 스크린샷과 영상은 아직 없습니다. 영어 현지화에 올리지 않으면 기본 언어(한국어)의 것이 대신 보입니다.

@@ -1,5 +1,5 @@
 #!/usr/bin/swift
-// assets/disk-lens.svg → macOS iconset. 아이콘 원본은 본래판(disk-lens)과 같은 파일이다.
+// assets/disk-lens.svg → macOS iconset. 아이콘 원본은 직접 다운로드판(disk-lens)과 같은 파일이다.
 // 사용법 (disk-lens-appstore 폴더에서): swift scripts/make-icon.swift <iconset 폴더>
 import AppKit
 

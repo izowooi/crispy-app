@@ -72,6 +72,8 @@ cat > "$entitlements" <<PLIST
 $identity
 </dict></plist>
 PLIST
+# 내려받은 파일에 붙는 격리 표시 같은 확장 속성을 지우고 서명한다.
+/usr/bin/xattr -cr "$app"
 codesign --force --options runtime --entitlements "$entitlements" --sign "${SIGN_APP:--}" "$app"
 codesign --verify --strict "$app"
 printf '%s\n' "Built: $app"
