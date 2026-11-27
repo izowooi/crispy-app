@@ -1,10 +1,10 @@
-# DiskLens 개인정보 처리방침 · Privacy Policy
+# DiskLens · DiskZ 개인정보 처리방침 · Privacy Policy
 
 시행일 / Effective: 2026-11-28
 
 ## 한국어
 
-DiskLens 는 어떤 개인정보도 수집하지 않습니다.
+DiskLens 와 DiskZ(DiskLens 의 Mac App Store 판)는 어떤 개인정보도 수집하지 않습니다.
 
 - 스캔은 사용자의 컴퓨터 안에서만 이루어집니다. 파일 이름, 경로, 크기, 파일 내용 어느 것도 컴퓨터 밖으로 보내지 않습니다.
 - 앱에는 인터넷 연결 기능이 없습니다. 계정, 광고, 분석 도구, 사용 통계 수집이 없습니다.
@@ -15,7 +15,7 @@ DiskLens 는 어떤 개인정보도 수집하지 않습니다.
 
 ## English
 
-DiskLens does not collect any personal data.
+DiskLens and DiskZ (the Mac App Store edition of DiskLens) do not collect any personal data.
 
 - Scanning happens entirely on your computer. File names, paths, sizes and contents never leave it.
 - The app has no network features: no accounts, no ads, no analytics, no usage statistics.

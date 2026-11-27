@@ -7,10 +7,10 @@ App Store Connect 에 앱을 만들 때 그대로 붙여 넣는 문구와 스크
 | 항목 | 값 |
 |---|---|
 | 플랫폼 | macOS |
-| 이름 | `DiskLens` (아래 "이름" 참고) |
+| 이름 | `DiskZ` (아래 "이름" 참고) |
 | 기본 언어 | 한국어 |
 | 번들 ID | `com.zowoo.app.disklens` |
-| SKU | `disklens-mac` |
+| SKU | `diskz-mac` |
 | 기본 카테고리 | 유틸리티 |
 | 보조 카테고리 | 생산성 |
 | 가격 | 무료 (0원) |
@@ -23,17 +23,19 @@ App Store Connect 에 앱을 만들 때 그대로 붙여 넣는 문구와 스크
 
 ### 이름
 
-App Store 의 앱 이름은 전 세계에서 하나뿐이어야 합니다. 같은 이름의 macOS 디스크 분석 앱이 Product Hunt 에 올라와 있어(App Store 등록 여부는 확인하지 못함) `DiskLens` 가 이미 쓰이고 있을 수 있습니다. 앱을 만들 때 거절되면 아래 중 하나를 씁니다.
+`DiskLens` 는 App Store 에 이미 있는 이름이라 **`DiskZ`** 로 등록했습니다. 앱 창 제목, 앱 파일 이름, pkg 이름도 DiskZ 입니다. 번들 ID 는 그대로 `com.zowoo.app.disklens` 입니다(번들 ID 는 사용자에게 보이지 않습니다).
 
-- `DiskLens - 용량 한눈에 보기`
-- `DiskLens: 디스크 용량 분석`
+### 언어
+
+앱은 11개 언어로 표시됩니다: English, 한국어, 简体中文, 日本語, Deutsch, Français, Italiano, Español, العربية, Polski, Русский.
+App Store 는 앱 안의 언어 폴더(`*.lproj`)를 보고 "언어" 항목을 자동으로 채웁니다. 스토어 페이지 문구는 한국어·영어를 아래에, 나머지 9개 언어를 [`localizations.md`](localizations.md) 에 두었습니다. 스크린샷과 영상은 한국어·영어만 있고, 다른 언어에는 올리지 않으면 기본 언어의 것이 보입니다.
 
 ## 한국어
 
 **이름** (30자 이내)
 
 ```
-DiskLens
+DiskZ
 ```
 
 **부제** (30자 이내)
@@ -51,7 +53,7 @@ DiskLens
 **설명**
 
 ```
-디스크가 꽉 찼는데 무엇 때문인지 모르겠다면 DiskLens 로 확인하세요.
+디스크가 꽉 찼는데 무엇 때문인지 모르겠다면 DiskZ 로 확인하세요.
 
 폴더나 디스크를 고르면 그 안의 내용을 크기에 비례한 그림으로 보여 줍니다. 큰 것은 크게, 작은 것은 작게 그려지므로 용량을 가장 많이 차지하는 폴더와 파일이 바로 눈에 들어옵니다.
 
@@ -70,7 +72,7 @@ DiskLens
 • 인터넷에 연결하지 않습니다. 파일 이름도 크기도 밖으로 나가지 않습니다.
 • 계정, 광고, 추적이 없습니다.
 
-한국어와 영어를 지원합니다.
+한국어, 영어를 비롯해 11개 언어를 지원합니다.
 ```
 
 **키워드** (100자 이내, 쉼표로 구분, 이름에 든 단어는 넣지 않음)
@@ -90,7 +92,7 @@ DiskLens
 **Name**
 
 ```
-DiskLens
+DiskZ
 ```
 
 **Subtitle** (30 characters max)
@@ -102,15 +104,15 @@ See what fills your disk
 **Promotional Text**
 
 ```
-Disk full and no idea why? Pick a folder and DiskLens draws what is taking the space. Big things look big, small things look small.
+Disk full and no idea why? Pick a folder and DiskZ draws what is taking the space. Big things look big, small things look small.
 ```
 
 **Description**
 
 ```
-Disk full and no idea why? DiskLens shows you.
+Disk full and no idea why? DiskZ shows you.
 
-Pick a folder or a disk and DiskLens draws its contents in proportion to their size. Big things look big and small things look small, so the folders and files using the most space stand out at once.
+Pick a folder or a disk and DiskZ draws its contents in proportion to their size. Big things look big and small things look small, so the folders and files using the most space stand out at once.
 
 How it works
 • Choose a folder or a disk.
@@ -127,7 +129,7 @@ Safe by design
 • No network access. File names and sizes never leave your Mac.
 • No accounts, no ads, no tracking.
 
-Available in English and Korean.
+Available in 11 languages, including English, Korean, Chinese, Japanese, German, French, Italian, Spanish, Arabic, Polish and Russian.
 ```
 
 **Keywords**
@@ -141,7 +143,7 @@ disk,space,storage,usage,analyzer,treemap,sunburst,folder,size,cleanup,files,vis
 로그인이 없으므로 데모 계정은 "로그인 필요" 를 끕니다. 메모는 영어로 씁니다.
 
 ```
-DiskLens is a read-only disk usage visualizer. It has no account, no network access and no in-app purchases.
+DiskZ is a read-only disk usage visualizer. It has no account, no network access and no in-app purchases.
 
 How to test:
 1. Launch the app and click "Choose folder…", then pick any folder in the open panel. ("Choose disk…" opens the same panel at the top of the disk; click Open to scan the whole disk.)
@@ -153,26 +155,25 @@ The app is sandboxed and uses only com.apple.security.files.user-selected.read-o
 
 ## 미리보기 영상 (App Preview)
 
-`preview/ko-preview.mp4` 를 올립니다. 스토어에서 스크린샷보다 앞, 첫 화면에 자동 재생됩니다.
+한국어 현지화에 `preview/ko-preview.mp4`, 영어 현지화에 `preview/en-preview.mp4` 를 올립니다. 스토어에서 스크린샷보다 앞, 첫 화면에 자동 재생됩니다.
 
 - 1920 × 1080, 30fps, H.264, 27초(허용 15~30초), 무음 스테레오 AAC.
 - 내용: 트리맵 → 폴더 안으로 두 번 → 뒤로 → 파일 선택 → 방사형 차트로 전환 → 고리를 눌러 안으로 → 가운데를 눌러 위로.
-- App Store 판 앱을 샌드박스에서 실행해 창을 녹화한 것입니다. 원본은 `preview/raw-window.mov`, 다시 만들 때는 `./store/make-preview.sh`.
+- App Store 판 앱을 샌드박스에서 실행해 창을 녹화한 것입니다. 원본은 `preview/raw-window-ko.mov`, `raw-window-en.mov`, 다시 만들 때는 `./store/make-preview.sh`.
 - 올린 뒤 App Store Connect 에서 **포스터 프레임**(재생 전에 보이는 정지 화면)을 고를 수 있습니다. 트리맵이 꽉 찬 첫 장면을 권합니다.
 - 처리에 최대 24시간이 걸릴 수 있고, 영상도 심사 대상입니다.
 
 ## 스크린샷
 
-`screenshots/` 의 5장을 번호 순서대로 올립니다. 2560 × 1600, 알파 없는 PNG 입니다 (Mac 허용 규격: 1280×800, 1440×900, 2560×1600, 2880×1800 중 하나, 1~10장).
+`screenshots/` 의 `ko-1` ~ `ko-5` 를 한국어에, `en-1` ~ `en-5` 를 영어에 번호 순서대로 올립니다. 2560 × 1600, 알파 없는 PNG 입니다 (Mac 허용 규격: 1280×800, 1440×900, 2560×1600, 2880×1800 중 하나, 1~10장).
 
-| 파일 | 문구 |
-|---|---|
-| `ko-1-treemap.png` | 무엇이 용량을 차지하는지 한눈에 |
-| `ko-2-folder.png` | 눌러서 폴더 안으로 |
-| `ko-3-sunburst.png` | 방사형 차트로도 |
-| `ko-4-details.png` | 큰 파일이 어디 있는지 바로 |
-| `ko-5-welcome.png` | 직접 고른 폴더만, 읽기만 |
+| 파일 | 한국어 문구 | 영어 문구 |
+|---|---|---|
+| `*-1-treemap.png` | 무엇이 용량을 차지하는지 한눈에 | See what fills your disk |
+| `*-2-folder.png` | 눌러서 폴더 안으로 | Click to go inside |
+| `*-3-sunburst.png` | 방사형 차트로도 | Or view it as a sunburst |
+| `*-4-details.png` | 큰 파일이 어디 있는지 바로 | Find the big files fast |
+| `*-5-welcome.png` | 직접 고른 폴더만, 읽기만 | Only what you choose, read-only |
 
-- App Store 판 앱의 실제 화면을 Retina 로 찍은 것입니다(`captures/`). 개인 폴더가 나오지 않도록 가짜 파일로 만든 `내 자료` 폴더를 스캔했습니다.
+- App Store 판 앱의 실제 화면을 Retina 로 찍은 것입니다(`captures/ko`, `captures/en`). 개인 폴더가 나오지 않도록 가짜 파일로 만든 `내 자료` / `My Files` 폴더를 스캔했습니다.
 - 화면이 바뀌면 `captures/` 의 그림을 바꾸고 `python3 store/make-screenshots.py` 를 실행합니다.
-- 영어 스크린샷과 영상은 아직 없습니다. 영어 현지화에 올리지 않으면 기본 언어(한국어)의 것이 대신 보입니다.

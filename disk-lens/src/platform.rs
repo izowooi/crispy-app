@@ -32,13 +32,38 @@ pub fn disk_label() -> &'static str {
         "Macintosh HD"
     }
 }
-pub fn font_path() -> PathBuf {
-    if cfg!(windows) {
-        PathBuf::from(std::env::var_os("WINDIR").unwrap_or_else(|| "C:\\Windows".into()))
-            .join("Fonts/malgun.ttf")
-    } else {
-        PathBuf::from("/System/Library/Fonts/AppleSDGothicNeo.ttc")
-    }
+/// 기본 글꼴에 없는 문자를 채울 시스템 글꼴. 앞에 있는 것부터 찾는다.
+#[cfg(target_os = "macos")]
+pub fn font_paths(language: crate::i18n::Language) -> Vec<PathBuf> {
+    let korean = "/System/Library/Fonts/AppleSDGothicNeo.ttc";
+    let japanese = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc";
+    let chinese = "/System/Library/Fonts/Hiragino Sans GB.ttc";
+    let arabic = "/System/Library/Fonts/GeezaPro.ttc";
+    // 같은 한자라도 언어마다 모양이 다르다. 지금 언어의 글꼴을 앞에 둔다.
+    let cjk = match language {
+        crate::i18n::Language::Japanese => [japanese, chinese, korean],
+        crate::i18n::Language::ChineseSimplified => [chinese, japanese, korean],
+        _ => [korean, japanese, chinese],
+    };
+    cjk.into_iter().chain([arabic]).map(PathBuf::from).collect()
+}
+#[cfg(windows)]
+pub fn font_paths(language: crate::i18n::Language) -> Vec<PathBuf> {
+    let windows = std::env::var_os("WINDIR").unwrap_or_else(|| "C:\\Windows".into());
+    let font = |name: &str| PathBuf::from(&windows).join("Fonts").join(name);
+    let (korean, japanese, chinese, arabic) = (
+        font("malgun.ttf"),
+        font("YuGothM.ttc"),
+        font("msyh.ttc"),
+        font("tahoma.ttf"),
+    );
+    // 같은 한자라도 언어마다 모양이 다르다. 지금 언어의 글꼴을 앞에 둔다.
+    let cjk = match language {
+        crate::i18n::Language::Japanese => [japanese, chinese, korean],
+        crate::i18n::Language::ChineseSimplified => [chinese, japanese, korean],
+        _ => [korean, japanese, chinese],
+    };
+    cjk.into_iter().chain([arabic]).collect()
 }
 pub fn reveal(path: &Path) -> io::Result<()> {
     #[cfg(windows)]

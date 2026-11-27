@@ -1,7 +1,7 @@
 #!/bin/sh
-# 창을 녹화한 영상(store/preview/raw-window.mov)을 App Store 미리보기 규격으로 만든다.
+# 창을 녹화한 영상(store/preview/raw-window-<언어>.mov)을 App Store 미리보기 규격으로 만든다.
 #   규격: 1920x1080, 30fps, H.264, 15~30초, 스테레오 AAC (소리는 무음)
-#   녹화: screencapture -v -C -V 27 -R<창 x,y,너비,높이> store/preview/raw-window.mov
+#   녹화: screencapture -v -C -V 27 -R<창 x,y,너비,높이> store/preview/raw-window-ko.mov
 # 사용: ./store/make-preview.sh   (disk-lens-appstore 폴더에서, ffmpeg 와 Pillow 필요)
 set -eu
 cd "$(dirname "$0")/.."
@@ -34,10 +34,12 @@ cover = background.convert("RGBA")
 cover.putalpha(hole)
 cover.save(sys.argv[2])
 PY
-ffmpeg -v error -y -loop 1 -framerate 30 -i "$background" -i store/preview/raw-window.mov -i "$cover" \
+for language in ko en; do
+ffmpeg -v error -y -loop 1 -framerate 30 -i "$background" -i "store/preview/raw-window-$language.mov" -i "$cover" \
     -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
     -filter_complex "[1:v]fps=30,scale=1472:980:flags=lanczos[w];[0:v][w]overlay=(W-w)/2:(H-h)/2:shortest=1[f];[f][2:v]overlay=0:0,format=yuv420p[v]" \
     -map "[v]" -map 3:a -c:v libx264 -profile:v high -level 4.2 -b:v 10M -maxrate 12M -bufsize 20M \
     -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-    -c:a aac -b:a 256k -shortest -movflags +faststart store/preview/ko-preview.mp4
-echo "만들었습니다: store/preview/ko-preview.mp4"
+    -c:a aac -b:a 256k -shortest -movflags +faststart "store/preview/$language-preview.mp4"
+done
+echo "만들었습니다: store/preview/ko-preview.mp4, en-preview.mp4"

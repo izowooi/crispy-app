@@ -4,8 +4,8 @@
 
 | 앱 | 설명 | 버전 |
 | --- | --- | --- |
-| [DiskLens](disk-lens/) | 무엇이 용량을 차지하는지 그림으로 보여 주는 macOS·Windows 앱 | 1.0.2 |
-| [DiskLens — Mac App Store 판](disk-lens-appstore/) | DiskLens 의 App Store 판(샌드박스 빌드)과 제출 자료 | 1.0.0 (제출 전) |
+| [DiskLens](disk-lens/) | 무엇이 용량을 차지하는지 그림으로 보여 주는 macOS·Windows 앱 | 1.0.3 |
+| [DiskZ — DiskLens 의 Mac App Store 판](disk-lens-appstore/) | DiskLens 의 App Store 판(샌드박스 빌드)과 제출 자료 | 1.0.0 (제출 전) |
 | [Sua View](sua-view/) | 로컬 이미지·만화 압축 파일 뷰어 | 0.1.0 |
 | [Obsidian Disk](obsidian-disk/) | CrystalDiskMark 기본 테스트를 Rust로 재구현한 Windows 디스크 벤치마크 | 0.1.0 (개발) |
 | [DeepZ](deepz/) | 글을 선택하고 ⌘C(Ctrl+C)를 두 번 누르면 커서 옆에 번역이 뜨는 macOS·Windows 앱 | 1.0.1 |

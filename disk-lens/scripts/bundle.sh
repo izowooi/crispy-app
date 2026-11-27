@@ -7,7 +7,7 @@ version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml)
 test -n "$version"
 app="dist/DiskLens.app"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/en.lproj" "$app/Contents/Resources/ko.lproj"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 swift scripts/make-icon.swift dist/DiskLens.iconset
 cp assets/disk-lens.svg "$app/Contents/Resources/DiskLens.svg"
 iconutil --convert icns --output "$app/Contents/Resources/DiskLens.icns" dist/DiskLens.iconset
@@ -19,7 +19,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>CFBundleName</key><string>DiskLens</string>
 <key>CFBundleDisplayName</key><string>DiskLens</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
-<key>CFBundleLocalizations</key><array><string>en</string><string>ko</string></array>
+<key>CFBundleLocalizations</key><array><string>en</string><string>ko</string><string>zh-Hans</string><string>ja</string><string>de</string><string>fr</string><string>it</string><string>es</string><string>ar</string><string>pl</string><string>ru</string></array>
 <key>CFBundleIconFile</key><string>DiskLens.icns</string>
 <key>CFBundleIdentifier</key><string>local.jongwoo.disklens</string>
 <key>CFBundleVersion</key><string>$version</string>
@@ -30,13 +30,9 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
-cat > "$app/Contents/Resources/en.lproj/InfoPlist.strings" <<'ENGLISH'
-"CFBundleName" = "DiskLens";
-"CFBundleDisplayName" = "DiskLens";
-ENGLISH
-cat > "$app/Contents/Resources/ko.lproj/InfoPlist.strings" <<'KOREAN'
-"CFBundleName" = "DiskLens";
-"CFBundleDisplayName" = "DiskLens";
-KOREAN
+for language in en ko zh-Hans ja de fr it es ar pl ru; do
+    mkdir -p "$app/Contents/Resources/$language.lproj"
+    printf '"CFBundleName" = "DiskLens";\n"CFBundleDisplayName" = "DiskLens";\n' > "$app/Contents/Resources/$language.lproj/InfoPlist.strings"
+done
 codesign --force --deep --sign - "$app"
 printf '%s\n' "Built: $app"

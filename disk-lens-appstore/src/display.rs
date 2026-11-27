@@ -3,8 +3,10 @@ use unicode_normalization::UnicodeNormalization;
 
 // macOS file names often use decomposed Hangul. egui renders precomposed syllables
 // reliably; normalize labels only, preserving the original filesystem paths.
+// 아랍 문자가 들어 있으면 글자를 잇고 화면 순서로 놓는다 (arabic.rs).
 pub fn text(value: &str) -> String {
-    value.nfc().collect()
+    let composed: String = value.nfc().collect();
+    crate::arabic::visual(&composed, None)
 }
 pub fn path(value: &Path) -> String {
     text(&value.to_string_lossy())

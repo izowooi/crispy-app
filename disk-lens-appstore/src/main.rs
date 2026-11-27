@@ -1,3 +1,4 @@
+mod arabic;
 mod bulk;
 mod charts;
 mod display;
@@ -5,6 +6,7 @@ mod i18n;
 mod platform;
 mod preferences;
 mod scanner;
+mod translations;
 
 use charts::ChartMode;
 use eframe::egui::{self, Color32, RichText};
@@ -12,7 +14,7 @@ use i18n::Language;
 use scanner::{ScanEvent, ScanHandle, ScanResult};
 use std::{path::PathBuf, sync::atomic::Ordering, time::Duration};
 
-const APP_NAME: &str = "DiskLens";
+const APP_NAME: &str = "DiskZ";
 const BACKGROUND: Color32 = Color32::from_rgb(23, 28, 38);
 const ACCENT: Color32 = Color32::from_rgb(102, 224, 194);
 fn size(bytes: u64) -> String {
@@ -25,6 +27,24 @@ fn size(bytes: u64) -> String {
     }
     format!("{n:.1} {}", units[i])
 }
+// 한글·한자·가나·아랍 문자는 시스템 글꼴에서 가져온다. 파일 이름과 언어 메뉴에 어느 문자든 나올 수 있어
+// 전부 넣되, 한자는 언어마다 모양이 달라 지금 언어의 글꼴을 먼저 찾게 한다.
+fn install_fonts(ctx: &egui::Context, language: Language) {
+    let mut fonts = egui::FontDefinitions::default();
+    for (index, path) in platform::font_paths(language).into_iter().enumerate() {
+        if let Ok(bytes) = std::fs::read(path) {
+            let name = format!("system-{index}");
+            fonts
+                .font_data
+                .insert(name.clone(), egui::FontData::from_owned(bytes).into());
+            for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+                fonts.families.entry(family).or_default().push(name.clone());
+            }
+        }
+    }
+    ctx.set_fonts(fonts);
+}
+
 struct DiskApp {
     language: Language,
     raw_path: PathBuf,
@@ -79,18 +99,7 @@ impl DiskApp {
         style.visuals.selection.bg_fill = Color32::from_rgb(41, 92, 91);
         style.visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(36, 44, 57);
         cc.egui_ctx.set_style(style);
-        let mut fonts = egui::FontDefinitions::default();
-        if let Ok(bytes) = std::fs::read(platform::font_path()) {
-            fonts
-                .font_data
-                .insert("korean".into(), egui::FontData::from_owned(bytes).into());
-            fonts
-                .families
-                .get_mut(&egui::FontFamily::Proportional)
-                .unwrap()
-                .push("korean".into());
-        }
-        cc.egui_ctx.set_fonts(fonts);
+        install_fonts(&cc.egui_ctx, language);
         Self::idle(language)
     }
     fn start(&mut self, path: PathBuf) {
@@ -129,13 +138,13 @@ impl DiskApp {
         };
         self.choose(
             self.language
-                .text("Choose a folder to scan", "스캔할 폴더 선택"),
+                .part("Choose a folder to scan", "스캔할 폴더 선택"),
             directory,
         );
     }
     fn choose_disk(&mut self) {
         self.choose(
-            self.language.text(
+            self.language.part(
                 "Click Open to scan the whole disk",
                 "열기를 누르면 디스크 전체를 스캔합니다",
             ),
@@ -223,8 +232,9 @@ impl DiskApp {
                 );
             });
             ui.menu_button(l.text("Language", "언어"), |ui| {
-                ui.selectable_value(&mut self.language, Language::English, "English");
-                ui.selectable_value(&mut self.language, Language::Korean, "한국어");
+                for (language, _, name) in i18n::LANGUAGES {
+                    ui.selectable_value(&mut self.language, language, arabic::visual(name, None));
+                }
             });
         })
         .response
@@ -263,13 +273,13 @@ impl DiskApp {
                             ui.vertical(|ui| {
                                 ui.label(RichText::new(platform::disk_label()).size(21.0));
                                 if let Ok(d) = scanner::disk_space(&platform::data_volume()) {
-                                    ui.small(format!(
+                                    ui.small(l.line(format!(
                                         "{} {} · {} {}",
                                         size(d.total),
-                                        l.text("total", "전체"),
+                                        l.part("total", "전체"),
                                         size(d.available),
-                                        l.text("available", "사용 가능")
-                                    ));
+                                        l.part("available", "사용 가능")
+                                    )));
                                 }
                             });
                             ui.with_layout(
@@ -312,8 +322,8 @@ impl DiskApp {
                 ui.add_space(22.0);
                 ui.horizontal(|ui| {
                     ui.small(l.text(
-                        "DiskLens only reads the folder you choose.",
-                        "DiskLens 는 직접 고른 폴더만 읽습니다.",
+                        "DiskZ only reads the folder you choose.",
+                        "DiskZ 는 직접 고른 폴더만 읽습니다.",
                     ));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.small(
@@ -418,12 +428,12 @@ impl eframe::App for DiskApp {
                 if self.scan.is_some() {
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.label(format!(
+                        ui.label(l.line(format!(
                             "{} · {} {}",
                             size(self.scanned),
                             self.entries,
-                            l.text("items checked", "개 확인")
-                        ));
+                            l.part("items checked", "개 확인")
+                        )));
                         ui.add(
                             egui::Label::new(
                                 RichText::new(&self.status).small().color(Color32::GRAY),
@@ -449,9 +459,9 @@ impl eframe::App for DiskApp {
                 ui.add_space(8.0);
                 egui::CollapsingHeader::new(l.text("Details","상세 정보")).default_open(false).show(ui,|ui| {
                     ui.small(display::path(&scanner::node_path(&r.nodes,id)));
-                    ui.small(format!("{} {} · {} {}",size(n.logical_bytes),l.text("logical","논리 크기"),size(n.allocated_bytes),l.text("allocated","할당 크기")));
-                    ui.small(format!("{} {} · {} {}",n.file_count,l.text("files","파일"),n.error_count,l.text("unreadable","접근 오류")));
-                    if self.scan.is_none(){ui.small(format!("{} {:.2}s",l.text("Scan time","스캔 시간"),r.elapsed.as_secs_f64()));}
+                    ui.small(l.line(format!("{} {} · {} {}",size(n.logical_bytes),l.part("logical","논리 크기"),size(n.allocated_bytes),l.part("allocated","할당 크기"))));
+                    ui.small(l.line(format!("{} {} · {} {}",n.file_count,l.part("files","파일"),n.error_count,l.part("unreadable","접근 오류"))));
+                    if self.scan.is_none(){ui.small(l.line(format!("{} {:.2}s",l.part("Scan time","스캔 시간"),r.elapsed.as_secs_f64())));}
                     ui.horizontal(|ui| {if ui.small_button(l.text("Show in Finder","Finder 에서 보기")).clicked(){reveal=Some(scanner::node_path(&r.nodes,id));}
  if ui.small_button(l.text("Copy path","경로 복사")).clicked(){ctx.copy_text(scanner::node_path(&r.nodes,id).display().to_string());}});
                     ui.checkbox(&mut self.allocated,l.text("Use allocated size","할당 크기로 표시"));
@@ -459,8 +469,8 @@ impl eframe::App for DiskApp {
                 });
                 if let Some(d)=self.disk {
                     ui.add_space(8.0);
-                    egui::CollapsingHeader::new(format!("{} · {} {}", l.text("Volume", "볼륨"),size(d.available),l.text("available","사용 가능"))).default_open(false).show(ui,|ui| {
-                        ui.small(format!("{} {} / {}",size(d.total.saturating_sub(d.free)),l.text("used","사용 중"),size(d.total)));
+                    egui::CollapsingHeader::new(l.line(format!("{} · {} {}", l.part("Volume", "볼륨"),size(d.available),l.part("available","사용 가능")))).default_open(false).show(ui,|ui| {
+                        ui.small(l.line(format!("{} {} / {}",size(d.total.saturating_sub(d.free)),l.part("used","사용 중"),size(d.total))));
                         ui.add(egui::ProgressBar::new(if d.total>0{(d.total-d.free) as f32/d.total as f32}else{0.0}).fill(ACCENT).desired_height(5.0));
                     });
                 }
@@ -529,7 +539,7 @@ impl eframe::App for DiskApp {
             self.error = Some(e.to_string());
         }
         if self.language != l {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Title(APP_NAME.into()));
+            install_fonts(ctx, self.language);
         }
     }
 }
@@ -538,11 +548,11 @@ fn main() -> eframe::Result {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let mut language = Language::detect();
     if let Some(index) = args.iter().position(|a| a == "--lang") {
-        language = match args.get(index + 1).and_then(|s| s.to_str()) {
-            Some("ko") => Language::Korean,
-            Some("en") => Language::English,
-            _ => language,
-        };
+        language = args
+            .get(index + 1)
+            .and_then(|s| s.to_str())
+            .and_then(Language::from_code)
+            .unwrap_or(language);
     }
     let viewport = egui::ViewportBuilder::default()
         .with_inner_size([1280.0, 820.0])
