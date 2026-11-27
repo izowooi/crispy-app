@@ -93,14 +93,23 @@
 
 1. 오른쪽 위 **···** → **전체 디스크 접근 권한…** 을 누릅니다.
 
-   <img src="docs/images/mac-full-disk-access.png" width="560" alt="전체 디스크 접근 권한 안내 창">
+   <img src="docs/images/mac-full-disk-access-menu.png" width="620" alt="오른쪽 위 메뉴의 전체 디스크 접근 권한 항목">
 
-2. **설정 열기** 를 누릅니다. 시스템 설정의 **개인정보 보호 및 보안 → 전체 디스크 접근 권한** 이 열립니다.
-3. 목록 아래의 **+** 를 누르고 응용 프로그램 폴더에서 **DiskLens** 를 골라 추가한 뒤, 스위치를 켭니다. Mac 암호(또는 Touch ID)를 물으면 입력합니다.
+2. 안내 창에서 **설정 열기** 를 누릅니다. 시스템 설정의 **전체 디스크 접근 권한** 목록이 바로 열립니다.
 
-   <img src="docs/images/mac-full-disk-access-settings.png" width="620" alt="전체 디스크 접근 권한 목록에서 켜진 DiskLens 스위치">
+   <img src="docs/images/mac-full-disk-access.png" width="620" alt="전체 디스크 접근 권한 안내 창의 설정 열기 버튼">
 
-4. DiskLens 로 돌아와 **앱 다시 실행** 을 누르고, 다시 스캔합니다.
+   > 직접 찾아가도 됩니다: **Apple 메뉴 → 시스템 설정 → 개인정보 보호 및 보안**(아래 그림의 ①) **→ 전체 디스크 접근 권한**.
+
+3. 목록 아래의 **+**(②)를 누르고, **응용 프로그램** 에서 **DiskLens**(③)를 고른 뒤 **열기**(④)를 누릅니다. Mac 암호(또는 Touch ID)를 물으면 입력합니다.
+
+   <img src="docs/images/mac-full-disk-access-settings.png" width="720" alt="전체 디스크 접근 권한 목록에서 + 를 눌러 DiskLens 를 추가하는 순서">
+
+4. *"'DiskLens'은(는) 종료될 때까지 전체 디스크 접근 권한이 없습니다."* 창이 뜨면 **종료 및 다시 열기** 를 누릅니다. 창이 뜨지 않으면 DiskLens 의 안내 창에서 **앱 다시 실행** 을 누릅니다.
+
+   <img src="docs/images/mac-full-disk-access-restart.png" width="260" alt="종료 및 다시 열기 버튼">
+
+5. 다시 **디스크 스캔** 을 누릅니다.
 
 Windows 에는 이 단계가 없습니다.
 
