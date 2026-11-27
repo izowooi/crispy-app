@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""docs/images 의 앱 화면에 바탕과 문구를 입혀 Mac App Store 용 스크린샷(2560x1600, 알파 없음)을 만든다.
+"""store/captures 의 앱 화면에 바탕과 문구를 입혀 Mac App Store 용 스크린샷(2560x1600, 알파 없음)을 만든다.
 
-사용: python3 appstore/make-screenshots.py   (disk-lens 폴더에서, Pillow 필요)
+사용: python3 store/make-screenshots.py   (disk-lens-appstore 폴더에서, Pillow 필요)
+captures 는 창 하나를 Retina 로 찍은 것이다: screencapture -o -l <창 번호> (2560x1704).
 """
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import io
+
+from PIL import Image, ImageCms, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 W, H = 2560, 1600
@@ -15,7 +18,7 @@ SHOTS = [
     ("folder.png", "눌러서 폴더 안으로", "궁금한 칸을 누르면 그 안을 다시 펼칩니다"),
     ("sunburst.png", "방사형 차트로도", "안쪽 고리가 상위 폴더, 바깥 고리가 그 안의 내용입니다"),
     ("details.png", "큰 파일이 어디 있는지 바로", "이름·크기·경로를 확인하고 Finder 에서 엽니다"),
-    ("welcome.png", "읽기만 합니다", "아무것도 지우거나 옮기지 않고, 인터넷으로 보내지도 않습니다"),
+    ("welcome.png", "직접 고른 폴더만, 읽기만", "아무것도 지우거나 옮기지 않고, 인터넷으로 보내지도 않습니다"),
 ]
 
 
@@ -50,7 +53,14 @@ def background():
 title_font, sub_font = font(104, True), font(46, False)
 for number, (name, title, subtitle) in enumerate(SHOTS, 1):
     canvas = background().convert("RGBA")
-    shot = Image.open(ROOT / "docs/images" / name).convert("RGB")
+    shot = Image.open(ROOT / "store/captures" / name)
+    # 화면 캡처는 디스플레이 색 프로파일(P3)로 저장된다. sRGB 로 바꾸지 않으면 색이 바랜다.
+    profile = shot.info.get("icc_profile")
+    shot = shot.convert("RGB")
+    if profile:
+        shot = ImageCms.profileToProfile(
+            shot, ImageCms.ImageCmsProfile(io.BytesIO(profile)), ImageCms.createProfile("sRGB")
+        )
     shot = shot.resize((WINDOW_WIDTH, round(shot.height * WINDOW_WIDTH / shot.width)), Image.LANCZOS)
     x, y, radius = (W - WINDOW_WIDTH) // 2, 330, 24
 
@@ -65,5 +75,5 @@ for number, (name, title, subtitle) in enumerate(SHOTS, 1):
     draw = ImageDraw.Draw(canvas)
     draw.text((W / 2, 126), title, font=title_font, fill=(255, 255, 255), anchor="mm")
     draw.text((W / 2, 236), subtitle, font=sub_font, fill=(200, 240, 232), anchor="mm")
-    canvas.convert("RGB").save(ROOT / "appstore/screenshots" / f"ko-{number}-{Path(name).stem}.png", optimize=True)
-print("만들었습니다: appstore/screenshots/")
+    canvas.convert("RGB").save(ROOT / "store/screenshots" / f"ko-{number}-{Path(name).stem}.png", optimize=True)
+print("만들었습니다: store/screenshots/")

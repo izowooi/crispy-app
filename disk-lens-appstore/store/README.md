@@ -56,7 +56,7 @@ DiskLens
 폴더나 디스크를 고르면 그 안의 내용을 크기에 비례한 그림으로 보여 줍니다. 큰 것은 크게, 작은 것은 작게 그려지므로 용량을 가장 많이 차지하는 폴더와 파일이 바로 눈에 들어옵니다.
 
 이렇게 씁니다
-• 폴더를 고르거나 창에 끌어다 놓습니다.
+• 볼 폴더나 디스크를 고릅니다.
 • 궁금한 칸을 누르면 그 폴더 안으로 들어갑니다.
 • 이름으로 항목을 찾고, 정확한 크기와 위치를 확인합니다.
 • Finder 에서 바로 열어 직접 정리합니다.
@@ -113,7 +113,7 @@ Disk full and no idea why? DiskLens shows you.
 Pick a folder or a disk and DiskLens draws its contents in proportion to their size. Big things look big and small things look small, so the folders and files using the most space stand out at once.
 
 How it works
-• Choose a folder, or drop one onto the window.
+• Choose a folder or a disk.
 • Click any block to go inside that folder.
 • Find items by name and check their exact size and location.
 • Reveal them in Finder and tidy up yourself.
@@ -144,12 +144,22 @@ disk,space,storage,usage,analyzer,treemap,sunburst,folder,size,cleanup,files,vis
 DiskLens is a read-only disk usage visualizer. It has no account, no network access and no in-app purchases.
 
 How to test:
-1. Launch the app and click "Choose folder…" (or drop any folder onto the window).
+1. Launch the app and click "Choose folder…", then pick any folder in the open panel. ("Choose disk…" opens the same panel at the top of the disk; click Open to scan the whole disk.)
 2. The app scans the folder and shows a treemap. Click a block to go into that folder.
 3. Use the "…" menu → View to switch to the sunburst chart.
 
-The app only reads file sizes inside folders the user selects. It never modifies or deletes files.
+The app is sandboxed and uses only com.apple.security.files.user-selected.read-only. It reads file sizes inside the folder the user selects in the open panel and never modifies or deletes files. It does not ask for Full Disk Access.
 ```
+
+## 미리보기 영상 (App Preview)
+
+`preview/ko-preview.mp4` 를 올립니다. 스토어에서 스크린샷보다 앞, 첫 화면에 자동 재생됩니다.
+
+- 1920 × 1080, 30fps, H.264, 27초(허용 15~30초), 무음 스테레오 AAC.
+- 내용: 트리맵 → 폴더 안으로 두 번 → 뒤로 → 파일 선택 → 방사형 차트로 전환 → 고리를 눌러 안으로 → 가운데를 눌러 위로.
+- 스토어판 앱을 샌드박스에서 실행해 창을 녹화한 것입니다. 원본은 `preview/raw-window.mov`, 다시 만들 때는 `./store/make-preview.sh`.
+- 올린 뒤 App Store Connect 에서 **포스터 프레임**(재생 전에 보이는 정지 화면)을 고를 수 있습니다. 트리맵이 꽉 찬 첫 장면을 권합니다.
+- 처리에 최대 24시간이 걸릴 수 있고, 영상도 심사 대상입니다.
 
 ## 스크린샷
 
@@ -161,8 +171,8 @@ The app only reads file sizes inside folders the user selects. It never modifies
 | `ko-2-folder.png` | 눌러서 폴더 안으로 |
 | `ko-3-sunburst.png` | 방사형 차트로도 |
 | `ko-4-details.png` | 큰 파일이 어디 있는지 바로 |
-| `ko-5-welcome.png` | 읽기만 합니다 |
+| `ko-5-welcome.png` | 직접 고른 폴더만, 읽기만 |
 
-- 지금 것은 직접 배포판(1.0.1) 화면을 1.25배 키워 만든 초안입니다. 글자가 조금 무릅니다. App Store 용 빌드가 나오면 그 화면을 Retina 로 다시 찍어 `docs/images/` 에 넣고 `python3 appstore/make-screenshots.py` 를 실행해 교체합니다.
-- 영어 스크린샷은 아직 없습니다. 영어 현지화에 스크린샷을 올리지 않으면 기본 언어(한국어)의 것이 대신 보입니다.
-- 스크린샷에는 실제 앱 화면만 써야 합니다. 5번(첫 화면)은 App Store 빌드에서 버튼 구성이 달라지면 다시 찍어야 합니다.
+- 스토어판 앱의 실제 화면을 Retina 로 찍은 것입니다(`captures/`). 개인 폴더가 나오지 않도록 가짜 파일로 만든 `내 자료` 폴더를 스캔했습니다.
+- 화면이 바뀌면 `captures/` 의 그림을 바꾸고 `python3 store/make-screenshots.py` 를 실행합니다.
+- 영어 스크린샷과 영상은 아직 없습니다. 영어 현지화에 올리지 않으면 기본 언어(한국어)의 것이 대신 보입니다.
