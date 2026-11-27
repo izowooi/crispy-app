@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Deepz</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A3BD6"/>
+      <stop offset="0.55" stop-color="#16206E"/>
+      <stop offset="1" stop-color="#090D2B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.28" cy="0.2" r="0.75">
+      <stop offset="0" stop-color="#6FE3FF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#6FE3FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="link" gradientUnits="userSpaceOnUse" x1="318" y1="352" x2="706" y2="672">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.5" stop-color="#9BEBFF"/>
+      <stop offset="1" stop-color="#3FD2FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 바탕 -->
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#glow)"/>
+  <rect x="103" y="103" width="818" height="818" rx="183" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="6"/>
+
+  <!-- 두 언어를 잇는 보조 연결선 -->
+  <g fill="none" stroke="#8FB4FF" stroke-opacity="0.32" stroke-width="10" stroke-linecap="round">
+    <path d="M318 352 C 250 470, 250 560, 318 672"/>
+    <path d="M706 352 C 774 464, 774 554, 706 672"/>
+  </g>
+  <g fill="#8FB4FF" fill-opacity="0.55">
+    <circle cx="318" cy="672" r="20"/>
+    <circle cx="706" cy="352" r="20"/>
+  </g>
+
+  <!-- Z: 원문(왼쪽 위)과 번역(오른쪽 아래)을 잇는 한 줄 -->
+  <path d="M318 352 H706 L318 672 H706" fill="none" stroke="#050822" stroke-opacity="0.35"
+        stroke-width="84" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 14)"/>
+  <path d="M318 352 H706 L318 672 H706" fill="none" stroke="url(#link)"
+        stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 양 끝의 연결점 -->
+  <circle cx="318" cy="352" r="66" fill="#FFFFFF"/>
+  <circle cx="318" cy="352" r="30" fill="#2A3BD6"/>
+  <circle cx="706" cy="672" r="66" fill="#3FD2FF"/>
+  <circle cx="706" cy="672" r="30" fill="#0B1140"/>
+</svg>
