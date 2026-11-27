@@ -21,7 +21,7 @@ func png(_ size: Int) -> Data {
 }
 
 // macOS: iconset → icns
-let iconset = FileManager.default.temporaryDirectory.appendingPathComponent("Deepz-\(getpid()).iconset")
+let iconset = FileManager.default.temporaryDirectory.appendingPathComponent("DeepZ-\(getpid()).iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 for base in [16, 32, 128, 256, 512] {
     try png(base).write(to: iconset.appendingPathComponent("icon_\(base)x\(base).png"))

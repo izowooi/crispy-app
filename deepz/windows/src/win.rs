@@ -124,7 +124,7 @@ const fn rgb(r: u32, g: u32, b: u32) -> COLORREF {
 pub fn run() {
     unsafe {
         // 이미 실행 중이면 조용히 끝낸다.
-        CreateMutexW(null(), 0, wide("Local\\DeepzSingleInstance").as_ptr());
+        CreateMutexW(null(), 0, wide("Local\\DeepZSingleInstance").as_ptr());
         if GetLastError() == ERROR_ALREADY_EXISTS {
             return;
         }
@@ -134,8 +134,8 @@ pub fn run() {
             dwICC: ICC_STANDARD_CLASSES,
         });
 
-        let main_class = wide("DeepzMain");
-        let popup_class = wide("DeepzPopup");
+        let main_class = wide("DeepZMain");
+        let popup_class = wide("DeepZPopup");
         let mut class: WNDCLASSW = std::mem::zeroed();
         class.hInstance = instance;
         class.lpfnWndProc = Some(main_proc);
@@ -147,7 +147,7 @@ pub fn run() {
         class.hCursor = LoadCursorW(null_mut(), IDC_ARROW);
         RegisterClassW(&class);
 
-        let title = wide("Deepz");
+        let title = wide("DeepZ");
         let main = CreateWindowExW(
             0, main_class.as_ptr(), title.as_ptr(), 0, 0, 0, 0, 0, null_mut(), null_mut(), instance, null(),
         );
@@ -472,7 +472,7 @@ unsafe fn paint(hwnd: HWND) {
 
     // 머리줄: 이름과 번역 방향
     let old_font = SelectObject(dc, state.bold);
-    let title = wide("Deepz");
+    let title = wide("DeepZ");
     let mut title_size = SIZE { cx: 0, cy: 0 };
     GetTextExtentPoint32W(dc, title.as_ptr(), 5, &mut title_size);
     let mut rect = RECT { left: px(14), top: 0, right: client.right, bottom: px(HEADER) };
@@ -663,7 +663,7 @@ unsafe fn tray(action: NOTIFY_ICON_MESSAGE) {
     if data.hIcon.is_null() {
         data.hIcon = LoadIconW(null_mut(), IDI_APPLICATION);
     }
-    let tip = wide("Deepz — Ctrl+C 두 번으로 번역");
+    let tip = wide("DeepZ — Ctrl+C 두 번으로 번역");
     data.szTip[..tip.len()].copy_from_slice(&tip);
     Shell_NotifyIconW(action, &data);
 }
@@ -680,7 +680,7 @@ unsafe fn tray_menu(hwnd: HWND) {
     add(MF_STRING | checked(autostart_enabled()), CMD_AUTOSTART, "Windows 시작 시 자동 실행");
     add(MF_STRING, CMD_KEYS, "API 키 설정…");
     add(MF_SEPARATOR, 0, "");
-    add(MF_STRING, CMD_QUIT, "Deepz 종료");
+    add(MF_STRING, CMD_QUIT, "DeepZ 종료");
 
     let mut cursor = POINT { x: 0, y: 0 };
     GetCursorPos(&mut cursor);
@@ -709,7 +709,7 @@ unsafe fn autostart_enabled() -> bool {
     if RegOpenKeyExW(HKEY_CURRENT_USER, wide(RUN_KEY).as_ptr(), 0, KEY_READ, &mut key) != ERROR_SUCCESS {
         return false;
     }
-    let found = RegQueryValueExW(key, wide("Deepz").as_ptr(), null(), null_mut(), null_mut(), null_mut());
+    let found = RegQueryValueExW(key, wide("DeepZ").as_ptr(), null(), null_mut(), null_mut(), null_mut());
     RegCloseKey(key);
     found == ERROR_SUCCESS
 }
@@ -719,7 +719,7 @@ unsafe fn set_autostart(enable: bool) {
     if RegOpenKeyExW(HKEY_CURRENT_USER, wide(RUN_KEY).as_ptr(), 0, KEY_SET_VALUE, &mut key) != ERROR_SUCCESS {
         return;
     }
-    let name = wide("Deepz");
+    let name = wide("DeepZ");
     if enable {
         if let Ok(exe) = std::env::current_exe() {
             let command = wide(&format!("\"{}\"", exe.display()));
@@ -740,7 +740,7 @@ unsafe fn open_key_file() {
         }
         let _ = std::fs::write(
             &path,
-            "# Deepz API 키. 하나만 있어도 됩니다. 저장하면 다음 번역부터 적용됩니다.\r\nANTHROPIC_API_KEY=\r\nOPENAI_API_KEY=\r\nGEMINI_API_KEY=\r\n",
+            "# DeepZ API 키. 하나만 있어도 됩니다. 저장하면 다음 번역부터 적용됩니다.\r\nANTHROPIC_API_KEY=\r\nOPENAI_API_KEY=\r\nGEMINI_API_KEY=\r\n",
         );
     }
     ShellExecuteW(

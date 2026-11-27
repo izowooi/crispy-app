@@ -18,10 +18,10 @@ pub fn env_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     if cfg!(windows) {
         if let Ok(appdata) = std::env::var("APPDATA") {
-            paths.push(PathBuf::from(appdata).join("Deepz").join("env"));
+            paths.push(PathBuf::from(appdata).join("DeepZ").join("env"));
         }
     } else if let Ok(home) = std::env::var("HOME") {
-        paths.push(PathBuf::from(home).join("Library/Application Support/Deepz/env"));
+        paths.push(PathBuf::from(home).join("Library/Application Support/DeepZ/env"));
     }
     if let Some(dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(PathBuf::from)) {
         paths.push(dir.join(".env.local"));

@@ -1,4 +1,4 @@
-// Deepz (Windows) — Ctrl+C,C 로 선택 영역을 번역해 주는 트레이 앱
+// DeepZ (Windows) — Ctrl+C,C 로 선택 영역을 번역해 주는 트레이 앱
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod core;

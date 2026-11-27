@@ -1,13 +1,13 @@
 #!/bin/bash
-# 배포용 ZIP 을 만든다 → dist/Deepz-<버전>-macOS-universal.zip, dist/Deepz-<버전>-windows-x64.zip (+ .sha256)
+# 배포용 ZIP 을 만든다 → dist/DeepZ-<버전>-macOS-arm64.zip, dist/DeepZ-<버전>-windows-x64.zip (+ .sha256)
 # 필요: Xcode Command Line Tools, rustup target add x86_64-pc-windows-gnu, brew install mingw-w64
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' windows/Cargo.toml)
 test -n "$VERSION"
-MAC_ZIP="Deepz-$VERSION-macOS-universal.zip"
-WIN_ZIP="Deepz-$VERSION-windows-x64.zip"
+MAC_ZIP="DeepZ-$VERSION-macOS-arm64.zip"
+WIN_ZIP="DeepZ-$VERSION-windows-x64.zip"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
@@ -18,13 +18,13 @@ rm -f "dist/$MAC_ZIP" "dist/$WIN_ZIP"
 
 # macOS: 앱 + 라이선스
 mkdir "$STAGE/mac"
-cp -R mac/build/Deepz.app "$STAGE/mac/Deepz.app"
+cp -R mac/build/DeepZ.app "$STAGE/mac/DeepZ.app"
 cp ../LICENSE "$STAGE/mac/LICENSE.txt"
 ditto -c -k --norsrc --noextattr "$STAGE/mac" "dist/$MAC_ZIP"
 
 # Windows: 실행 파일 + 라이선스 + 포함된 Rust 크레이트의 라이선스 고지
 mkdir -p "$STAGE/win/licenses"
-cp dist/Deepz.exe "$STAGE/win/Deepz.exe"
+cp dist/DeepZ.exe "$STAGE/win/DeepZ.exe"
 cp ../LICENSE "$STAGE/win/LICENSE.txt"
 (cd windows && cargo tree --locked --target x86_64-pc-windows-gnu -e normal --prefix none --format '{p}' \
     | sed 's/ (.*//' | sort -u) | while read -r name version; do

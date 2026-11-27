@@ -1,10 +1,10 @@
-// Deepz — ⌘C,C 로 선택 영역을 번역해 주는 메뉴 막대 앱
+// DeepZ — ⌘C,C 로 선택 영역을 번역해 주는 메뉴 막대 앱
 import AppKit
 import ApplicationServices
 import ServiceManagement
 
 func log(_ message: String) {
-    FileHandle.standardError.write(Data("[Deepz] \(message)\n".utf8))
+    FileHandle.standardError.write(Data("[DeepZ] \(message)\n".utf8))
 }
 
 // MARK: - 설정 (API 키)
@@ -12,7 +12,38 @@ func log(_ message: String) {
 enum Config {
     /// 키는 프로젝트 폴더가 아니라 여기서 읽는다. build.sh 가 .env.local 을 복사해 둔다.
     static let envURL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Deepz/env")
+        .appendingPathComponent("Library/Application Support/DeepZ/env")
+
+    /// 서비스별 키 이름. 흔한 표기를 모두 받는다 (앞쪽이 우선, 첫째가 저장할 때 쓰는 정식 이름).
+    static let claudeKeyNames = ["ANTHROPIC_API_KEY", "CLAUDE_API_KEY", "CLAUDE_KEY", "CLADE_API_KEY", "CLADE_API_KEY_1"]
+    static let openAIKeyNames = ["OPENAI_API_KEY", "OPEN_AI_KEY", "OPENAI_KEY"]
+    static let geminiKeyNames = ["GEMINI_API_KEY", "GEMINI_KEY", "GOOGLE_API_KEY"]
+
+    static func key(_ names: [String], in env: [String: String]) -> String? {
+        names.lazy.compactMap { env[$0] }.first
+    }
+
+    private static func name(ofLine line: Substring) -> String? {
+        var entry = line.trimmingCharacters(in: .whitespaces)
+        if entry.hasPrefix("export ") { entry = String(entry.dropFirst(7)) }
+        guard !entry.hasPrefix("#"), let eq = entry.firstIndex(of: "=") else { return nil }
+        return entry[..<eq].trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 키만 바꿔 쓴다. 모델 설정이나 주석 같은 다른 줄은 그대로 둔다.
+    static func save(keys: [(names: [String], value: String)]) throws {
+        let replaced = Set(keys.flatMap(\.names))
+        let old = (try? String(contentsOf: envURL, encoding: .utf8)) ?? ""
+        var lines = old.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .filter { line in name(ofLine: line).map { !replaced.contains($0) } ?? true }
+            .map(String.init)
+        while lines.last?.isEmpty == true { lines.removeLast() }
+        for key in keys where !key.value.isEmpty { lines.append("\(key.names[0])=\(key.value)") }
+        let directory = envURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: envURL, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: envURL.path)
+    }
 
     static func load() -> [String: String] {
         guard let content = try? String(contentsOf: envURL, encoding: .utf8) else { return [:] }
@@ -81,9 +112,7 @@ enum Translator {
         let system = systemPrompt(target)
 
         // 첫 글자가 가장 빨리 나오는 모델을 먼저 쓰고, 실패하면 다음 모델로 넘어간다.
-        // 키 이름은 흔한 표기를 모두 받는다 (앞쪽이 우선).
-        func key(_ names: String...) -> String? { names.lazy.compactMap { env[$0] }.first }
-        if let key = key("ANTHROPIC_API_KEY", "CLAUDE_API_KEY", "CLAUDE_KEY", "CLADE_API_KEY", "CLADE_API_KEY_1") {
+        if let key = Config.key(Config.claudeKeyNames, in: env) {
             let model = env["DEEPZ_CLAUDE_MODEL"] ?? "claude-sonnet-5-5"
             var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
             req.setValue(key, forHTTPHeaderField: "x-api-key")
@@ -105,7 +134,7 @@ enum Translator {
                 return delta["text"] as? String
             }))
         }
-        if let key = key("OPENAI_API_KEY", "OPEN_AI_KEY", "OPENAI_KEY") {
+        if let key = Config.key(Config.openAIKeyNames, in: env) {
             let model = env["DEEPZ_OPENAI_MODEL"] ?? "gpt-6.2-sol"
             var req = URLRequest(url: URL(string: "https://api.openai.com/v1/chat/completions")!)
             req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
@@ -122,7 +151,7 @@ enum Translator {
                 return delta["content"] as? String
             }))
         }
-        if let key = key("GEMINI_API_KEY", "GEMINI_KEY", "GOOGLE_API_KEY") {
+        if let key = Config.key(Config.geminiKeyNames, in: env) {
             let model = env["DEEPZ_GEMINI_MODEL"] ?? "gemini-4-hydrogen"
             var req = URLRequest(url: URL(string:
                 "https://generativelanguage.googleapis.com/v1beta/models/\(model):streamGenerateContent?alt=sse")!)
@@ -143,7 +172,7 @@ enum Translator {
             }))
         }
         guard !providers.isEmpty else {
-            throw TranslateError(message: "API 키를 찾지 못했습니다.\n\(Config.envURL.path) 에 ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY 중 하나를 넣어 주세요.\n(메뉴 막대 아이콘 → API 키 설정…)")
+            throw TranslateError(message: "API 키를 찾지 못했습니다.\n메뉴 막대의 Z 아이콘 → API 키 설정… 에서 키를 넣어 주세요.")
         }
 
         var lastError: Error = TranslateError(message: "번역에 실패했습니다.")
@@ -248,7 +277,7 @@ final class Popup: NSObject {
         background.layer?.masksToBounds = true
         panel.contentView = background
 
-        let title = NSTextField(labelWithString: "Deepz")
+        let title = NSTextField(labelWithString: "DeepZ")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
         languageLabel.font = .systemFont(ofSize: 12)
         languageLabel.textColor = .secondaryLabelColor
@@ -397,12 +426,94 @@ final class Popup: NSObject {
     }
 }
 
+// MARK: - API 키 설정 창
+
+@MainActor
+final class KeyWindow: NSObject {
+    private let services: [(title: String, placeholder: String, names: [String])] = [
+        ("Claude", "sk-ant- 로 시작하는 키", Config.claudeKeyNames),
+        ("OpenAI", "sk- 로 시작하는 키", Config.openAIKeyNames),
+        ("Gemini", "AIza 로 시작하는 키", Config.geminiKeyNames),
+    ]
+    private var fields: [NSSecureTextField] = []
+    private let errorLabel = NSTextField(wrappingLabelWithString: "")
+    private lazy var window: NSWindow = {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 10),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "DeepZ API 키"
+        window.isReleasedWhenClosed = false
+
+        let intro = NSTextField(wrappingLabelWithString:
+            "가지고 있는 키만 붙여 넣으면 됩니다. 하나만 있어도 번역할 수 있습니다.\n키는 이 Mac 에만 저장됩니다.")
+        intro.textColor = .secondaryLabelColor
+
+        let grid = NSGridView()
+        grid.rowSpacing = 10
+        grid.columnSpacing = 10
+        for service in services {
+            let field = NSSecureTextField()
+            field.placeholderString = service.placeholder
+            field.widthAnchor.constraint(equalToConstant: 330).isActive = true
+            fields.append(field)
+            grid.addRow(with: [NSTextField(labelWithString: service.title), field])
+        }
+        grid.column(at: 0).xPlacement = .trailing
+        grid.rowAlignment = .firstBaseline
+
+        errorLabel.textColor = .systemRed
+        errorLabel.isHidden = true
+        let cancel = NSButton(title: "취소", target: self, action: #selector(cancel))
+        cancel.keyEquivalent = "\u{1b}"
+        let save = NSButton(title: "저장", target: self, action: #selector(save))
+        save.keyEquivalent = "\r"
+        let buttons = NSStackView(views: [NSView(), cancel, save])
+
+        let stack = NSStackView(views: [intro, grid, errorLabel, buttons])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 16
+        stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        buttons.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
+        window.contentView = stack
+        return window
+    }()
+
+    func show() {
+        let window = window
+        let env = Config.load()
+        for (field, service) in zip(fields, services) {
+            field.stringValue = Config.key(service.names, in: env) ?? ""
+        }
+        errorLabel.isHidden = true
+        if !window.isVisible { window.center() }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(fields.first { $0.stringValue.isEmpty } ?? fields[0])
+    }
+
+    @objc private func cancel() { window.close() }
+
+    @objc private func save() {
+        let keys = zip(fields, services).map { field, service in
+            (names: service.names, value: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        do {
+            try Config.save(keys: keys)
+            window.close()
+        } catch {
+            errorLabel.stringValue = "저장하지 못했습니다: \(error.localizedDescription)"
+            errorLabel.isHidden = false
+        }
+    }
+}
+
 // MARK: - 앱
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popup = Popup()
+    private let keyWindow = KeyWindow()
     private var paused = false
     private var activity: NSObjectProtocol?
 
@@ -423,6 +534,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+
+        // 메뉴 막대가 없는 앱이라, 설정 창에서 ⌘V 같은 편집 단축키가 듣도록 보이지 않는 편집 메뉴를 둔다.
+        let edit = NSMenu(title: "편집")
+        edit.addItem(withTitle: "실행 취소", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "오려두기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "복사하기", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "전체 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let editItem = NSMenuItem()
+        editItem.submenu = edit
+        NSApp.mainMenu = NSMenu()
+        NSApp.mainMenu?.addItem(editItem)
 
         popup.onClose = { [weak self] in self?.task?.cancel() }
         popup.onOwnCopy = { [weak self] in
@@ -446,6 +569,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         RunLoop.main.add(trustTimer, forMode: .common)
         updateKeyMonitor()
         log("시작됨 (감지 방식: \(keyMonitor == nil ? "클립보드" : "키 입력"))")
+
+        // 키가 하나도 없으면 처음 켰을 때 바로 넣을 수 있게 설정 창을 띄운다.
+        let env = Config.load()
+        if [Config.claudeKeyNames, Config.openAIKeyNames, Config.geminiKeyNames].allSatisfy({ Config.key($0, in: env) == nil }) {
+            keyWindow.show()
+        }
     }
 
     /// 앱 아이콘과 같은 모양: 두 점을 Z 로 잇는 선.
@@ -468,7 +597,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Deepz"
+        image.accessibilityDescription = "DeepZ"
         return image
     }
 
@@ -581,12 +710,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if keyMonitor == nil {
             menu.addItem(withTitle: "정밀 감지 켜기 (손쉬운 사용 권한)…", action: #selector(requestAccessibility), keyEquivalent: "").target = self
         }
-        menu.addItem(withTitle: "API 키 설정…", action: #selector(openKeyFile), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "API 키 설정…", action: #selector(openKeySettings), keyEquivalent: "").target = self
         let login = menu.addItem(withTitle: "로그인 시 자동 실행", action: #selector(toggleLoginItem), keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Deepz 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "DeepZ 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
     @objc private func togglePause() {
@@ -599,18 +728,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
-    /// 키 파일이 없으면 틀을 만들어 주고 텍스트 편집기로 연다.
-    @objc private func openKeyFile() {
-        let url = Config.envURL
-        if !FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let template = "# Deepz API 키. 하나만 있어도 됩니다. 저장하면 다음 번역부터 적용됩니다.\nANTHROPIC_API_KEY=\nOPENAI_API_KEY=\nGEMINI_API_KEY=\n"
-            FileManager.default.createFile(atPath: url.path, contents: Data(template.utf8),
-                                           attributes: [.posixPermissions: 0o600])
-        }
-        NSWorkspace.shared.open([url], withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
-                                configuration: NSWorkspace.OpenConfiguration())
-    }
+    @objc private func openKeySettings() { keyWindow.show() }
 
     @objc private func toggleLoginItem() {
         do {
@@ -633,7 +751,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
 let arguments = CommandLine.arguments
 if arguments.count > 2, arguments[1] == "--translate" {
-    // 점검용: Deepz --translate "text" → 번역을 표준 출력으로 내보내고 종료
+    // 점검용: DeepZ --translate "text" → 번역을 표준 출력으로 내보내고 종료
     let text = arguments.dropFirst(2).joined(separator: " ")
     Task {
         do {

@@ -1,24 +1,20 @@
 #!/bin/bash
-# Deepz 빌드(Apple Silicon + Intel) → ~/Applications 에 설치 → 실행
+# DeepZ 빌드(Apple Silicon) → ~/Applications 에 설치 → 실행
 #   ./mac/build.sh              빌드·설치·실행
-#   ./mac/build.sh --no-install 빌드만 (mac/build/Deepz.app)
+#   ./mac/build.sh --no-install 빌드만 (mac/build/DeepZ.app)
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="build/Deepz.app"
-INSTALLED="$HOME/Applications/Deepz.app"
-SUPPORT="$HOME/Library/Application Support/Deepz"
+APP="build/DeepZ.app"
+INSTALLED="$HOME/Applications/DeepZ.app"
+SUPPORT="$HOME/Library/Application Support/DeepZ"
 VERSION=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' ../windows/Cargo.toml)
 test -n "$VERSION"
 
 rm -rf build
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-for arch in arm64 x86_64; do
-    swiftc -O -swift-version 5 -target "$arch-apple-macos13.0" Sources/main.swift -o "build/Deepz-$arch"
-done
-lipo -create build/Deepz-arm64 build/Deepz-x86_64 -output "$APP/Contents/MacOS/Deepz"
-rm build/Deepz-arm64 build/Deepz-x86_64
+swiftc -O -swift-version 5 -target arm64-apple-macos13.0 Sources/main.swift -o "$APP/Contents/MacOS/DeepZ"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -26,8 +22,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key><string>local.deepz</string>
-    <key>CFBundleName</key><string>Deepz</string>
-    <key>CFBundleExecutable</key><string>Deepz</string>
+    <key>CFBundleName</key><string>DeepZ</string>
+    <key>CFBundleExecutable</key><string>DeepZ</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
@@ -51,7 +47,7 @@ if [ -f ../.env.local ]; then
     install -m 600 ../.env.local "$SUPPORT/env"
 fi
 
-pkill -x Deepz 2>/dev/null || true
+pkill -x DeepZ 2>/dev/null || true
 mkdir -p "$HOME/Applications"
 rm -rf "$INSTALLED"
 cp -R "$APP" "$INSTALLED"
