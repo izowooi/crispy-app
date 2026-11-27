@@ -1,6 +1,6 @@
 [package]
 name = "disk-lens"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 
 [features]
@@ -15,7 +15,7 @@ unicode-normalization = "0.1"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Globalization", "Win32_System_IO", "Win32_System_Ioctl"] }
 
-[target.'cfg(windows)'.build-dependencies]
+[build-dependencies]
 winresource = "0.1"
 
 [profile.release]

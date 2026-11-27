@@ -15,14 +15,17 @@ func color(_ value: String) -> NSColor? {
     guard value.hasPrefix("#"), let rgb = UInt32(value.dropFirst(), radix: 16) else { return nil }
     return NSColor(srgbRed: CGFloat((rgb >> 16) & 255)/255, green: CGFloat((rgb >> 8) & 255)/255, blue: CGFloat(rgb & 255)/255, alpha: 1)
 }
-let output = CommandLine.arguments.dropFirst().first ?? "dist/DiskLens.iconset"
-let source = CommandLine.arguments.dropFirst(2).first ?? "assets/disk-lens.svg"
+// 사용법: make-icon.swift [iconset 폴더] [svg]  또는  make-icon.swift --ico <출력.ico> [svg]
+var arguments = Array(CommandLine.arguments.dropFirst())
+let ico = arguments.first == "--ico"
+if ico { arguments.removeFirst() }
+let output = arguments.first ?? "dist/DiskLens.iconset"
+let source = arguments.dropFirst().first ?? "assets/disk-lens.svg"
 let svg = SVG()
 let parser = XMLParser(data: try Data(contentsOf: URL(fileURLWithPath: source)))
 parser.delegate = svg
 guard parser.parse(), !svg.elements.isEmpty else { fatalError("Invalid SVG: \(source)") }
-try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
-func draw(size: Int, name: String) throws {
+func render(size: Int) -> Data {
     guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0), let context = NSGraphicsContext(bitmapImageRep: bitmap) else { fatalError("Cannot create icon bitmap") }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = context
@@ -48,9 +51,27 @@ func draw(size: Int, name: String) throws {
     }
     NSGraphicsContext.restoreGraphicsState()
     guard let data = bitmap.representation(using: .png, properties: [:]) else { fatalError("PNG encoding failed") }
-    try data.write(to: URL(fileURLWithPath: output).appendingPathComponent(name))
+    return data
 }
-for points in [16, 32, 128, 256, 512] {
-    try draw(size: points, name: "icon_\(points)x\(points).png")
-    try draw(size: points*2, name: "icon_\(points)x\(points)@2x.png")
+if ico {
+    // Windows 용: PNG 를 그대로 담은 ICO 와, 창 아이콘으로 쓰는 256px PNG("<출력>.png").
+    let sizes = [16, 32, 48, 64, 128, 256]
+    let images = sizes.map(render)
+    func le<T: FixedWidthInteger>(_ value: T) -> Data { withUnsafeBytes(of: value.littleEndian) { Data($0) } }
+    var file = le(UInt16(0)) + le(UInt16(1)) + le(UInt16(images.count))
+    var offset = 6 + 16 * images.count
+    for (size, image) in zip(sizes, images) {
+        let dimension = UInt8(size == 256 ? 0 : size)
+        file += Data([dimension, dimension, 0, 0]) + le(UInt16(1)) + le(UInt16(32)) + le(UInt32(image.count)) + le(UInt32(offset))
+        offset += image.count
+    }
+    for image in images { file += image }
+    try file.write(to: URL(fileURLWithPath: output))
+    try images[5].write(to: URL(fileURLWithPath: output + ".png"))
+} else {
+    try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
+    for points in [16, 32, 128, 256, 512] {
+        try render(size: points).write(to: URL(fileURLWithPath: output).appendingPathComponent("icon_\(points)x\(points).png"))
+        try render(size: points*2).write(to: URL(fileURLWithPath: output).appendingPathComponent("icon_\(points)x\(points)@2x.png"))
+    }
 }

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <title>Disk Lens</title>
+  <title>DiskLens</title>
   <desc>A flat silver disk and mint magnifying lens revealing a colorful storage treemap.</desc>
   <rect x="64" y="64" width="896" height="896" rx="200" fill="#17253F"/>
   <circle cx="432" cy="432" r="264" fill="#E8EAF8"/>

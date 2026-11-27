@@ -25,6 +25,7 @@ use std::{
     time::Duration,
 };
 
+const APP_NAME: &str = "DiskLens";
 const BACKGROUND: Color32 = Color32::from_rgb(23, 28, 38);
 const ACCENT: Color32 = Color32::from_rgb(102, 224, 194);
 fn size(bytes: u64) -> String {
@@ -358,11 +359,11 @@ impl DiskApp {
         let l = self.language;
         let mut visible = true;
         egui::Window::new(l.text("Full Disk Access","전체 디스크 접근 권한")).open(&mut visible).collapsible(false).resizable(false).default_width(490.0).anchor(egui::Align2::CENTER_CENTER,[0.0,0.0]).show(ctx,|ui| {
-            ui.label(l.text("To include protected folders, add Disk Lens in macOS settings. You can also scan the files already available.","보호된 폴더까지 확인하려면 macOS 설정에 디스크 렌즈를 추가하세요. 현재 접근 가능한 파일만 스캔할 수도 있습니다."));
+            ui.label(l.text("To include protected folders, add DiskLens in macOS settings. You can also scan the files already available.","보호된 폴더까지 확인하려면 macOS 설정에 DiskLens 를 추가하세요. 현재 접근 가능한 파일만 스캔할 수도 있습니다."));
             ui.add_space(12.0);
             ui.label(l.text("1. Open Privacy & Security → Full Disk Access.","1. 개인정보 보호 및 보안 → 전체 디스크 접근 권한을 여세요."));
-            ui.label(l.text("2. Click +, choose Disk Lens.app, then turn it on.","2. +를 눌러 Disk Lens.app을 추가하고 스위치를 켜세요."));
-            ui.label(l.text("3. Restart Disk Lens, then choose Scan.","3. 디스크 렌즈를 다시 실행한 뒤 스캔을 누르세요."));
+            ui.label(l.text("2. Click +, choose DiskLens.app, then turn it on.","2. +를 눌러 DiskLens.app 을 추가하고 스위치를 켜세요."));
+            ui.label(l.text("3. Restart DiskLens, then choose Scan.","3. DiskLens 를 다시 실행한 뒤 스캔을 누르세요."));
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 if ui.button(l.text("Open settings","설정 열기")).clicked() && let Err(e)=open("x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {self.error=Some(e.to_string());}
@@ -456,11 +457,7 @@ impl eframe::App for DiskApp {
                             ));
                         }
                     } else {
-                        ui.label(
-                            RichText::new(l.text("Disk Lens", "디스크 렌즈"))
-                                .size(20.0)
-                                .color(ACCENT),
-                        );
+                        ui.label(RichText::new(APP_NAME).size(20.0).color(ACCENT));
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         self.settings(ui);
@@ -598,9 +595,7 @@ impl eframe::App for DiskApp {
             self.error = Some(e.to_string());
         }
         if self.language != l {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                self.language.text("Disk Lens", "디스크 렌즈").into(),
-            ));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(APP_NAME.into()));
         }
     }
 }
@@ -670,7 +665,7 @@ fn main() -> eframe::Result {
         .expect("Generated app icon is valid PNG"),
     );
     eframe::run_native(
-        language.text("Disk Lens", "디스크 렌즈"),
+        APP_NAME,
         eframe::NativeOptions {
             viewport,
             ..Default::default()

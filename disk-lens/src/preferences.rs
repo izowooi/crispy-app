@@ -16,11 +16,22 @@ fn preferences_path() -> io::Result<PathBuf> {
     })
     .filter(|value| !value.is_empty())
     .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Home directory is unavailable"))?;
-    Ok(PathBuf::from(home).join(if cfg!(windows) {
-        "Disk Lens/preferences"
+    let base = PathBuf::from(home).join(if cfg!(windows) {
+        ""
     } else {
-        "Library/Application Support/Disk Lens/preferences"
-    }))
+        "Library/Application Support"
+    });
+    let path = base.join("DiskLens/preferences");
+    // 1.0.0 은 "Disk Lens" 폴더에 저장했다. 이름을 바꾼 뒤에도 마지막 경로와 차트 설정을 잇는다.
+    let legacy = base.join("Disk Lens/preferences");
+    if !path.exists()
+        && legacy.exists()
+        && let Some(parent) = path.parent()
+        && fs::create_dir_all(parent).is_ok()
+    {
+        let _ = fs::copy(&legacy, &path);
+    }
+    Ok(path)
 }
 
 pub fn load_chart() -> ChartMode {
