@@ -38,7 +38,7 @@ open dist/DiskZ.app
    BUILD=1 ./scripts/bundle.sh
    ```
 
-3. `dist/DiskZ-<버전>.pkg` 를 Transporter 앱으로 올립니다. 다시 올릴 때는 `BUILD` 를 1씩 키웁니다.
+3. `./scripts/upload.sh` 로 `dist/DiskZ-<버전>.pkg` 를 올립니다(검증 후 업로드). 인증은 `~/git/.auth/testflight.env` 의 App Store Connect API 키를 씁니다. Transporter 앱에 끌어다 놓아도 됩니다. 다시 올릴 때는 `BUILD` 를 1씩 키웁니다.
 4. App Store Connect 에 넣을 문구, 스크린샷, 미리보기 영상은 [`store/`](store/) 에 있습니다.
 
 배포용 서명으로 만든 앱은 내 Mac 에서 바로 실행되지 않습니다(스토어를 거쳐야 실행됩니다). 동작 확인은 위의 임시 서명 빌드로 합니다.
