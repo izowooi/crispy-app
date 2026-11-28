@@ -34,6 +34,7 @@ const CMD_PAUSE: usize = 1;
 const CMD_AUTOSTART: usize = 2;
 const CMD_KEYS: usize = 3;
 const CMD_QUIT: usize = 4;
+const CMD_GUIDE: usize = 5;
 
 const DOUBLE_PRESS_MS: u64 = 600;
 const CF_UNICODETEXT: u32 = 13;
@@ -679,13 +680,18 @@ unsafe fn tray_menu(hwnd: HWND) {
         add(
             MF_STRING | MF_GRAYED,
             0,
-            &format!("무료 번역: 하루 {}회 · API 키를 넣으면 제한 없음", core::FREE_DAILY_LIMIT),
+            &format!(
+                "무료 번역: 오늘 {}회 남음 (하루 {}회) · 본인 API 키를 넣으면 제한 없음",
+                core::FREE_DAILY_LIMIT.saturating_sub(core::free_used_today()),
+                core::FREE_DAILY_LIMIT
+            ),
         );
     }
     add(MF_SEPARATOR, 0, "");
     add(MF_STRING | checked(PAUSED.load(SeqCst)), CMD_PAUSE, "일시 정지");
     add(MF_STRING | checked(autostart_enabled()), CMD_AUTOSTART, "Windows 시작 시 자동 실행");
     add(MF_STRING, CMD_KEYS, "API 키 설정…");
+    add(MF_STRING, CMD_GUIDE, "API 키 발급 안내");
     add(MF_SEPARATOR, 0, "");
     add(MF_STRING, CMD_QUIT, "DeepZ 종료");
 
@@ -702,6 +708,9 @@ unsafe fn tray_menu(hwnd: HWND) {
         }
         CMD_AUTOSTART => set_autostart(!autostart_enabled()),
         CMD_KEYS => open_key_file(),
+        CMD_GUIDE => {
+            ShellExecuteW(null_mut(), wide("open").as_ptr(), wide(core::KEY_GUIDE_URL).as_ptr(), null(), null(), SW_SHOWNORMAL);
+        }
         CMD_QUIT => {
             DestroyWindow(hwnd);
         }

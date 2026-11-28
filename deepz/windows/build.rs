@@ -16,7 +16,9 @@ fn main() {
         let content = std::fs::read_to_string(file?).ok()?;
         content.lines().find_map(|line| line.strip_prefix("DEEPZ_APP_SECRET=").map(|v| v.trim().to_string()))
     });
-    let secret = secret.unwrap_or_default();
+    // 공개 배포 파일을 만들 때는 값을 넣지 않는다 (scripts/package.sh).
+    println!("cargo:rerun-if-env-changed=DEEPZ_NO_SECRET");
+    let secret = if std::env::var_os("DEEPZ_NO_SECRET").is_some() { String::new() } else { secret.unwrap_or_default() };
     if secret.is_empty() {
         println!("cargo:warning=DEEPZ_APP_SECRET 이 없어 무료 번역 없이 빌드합니다.");
     }

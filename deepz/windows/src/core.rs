@@ -13,8 +13,37 @@ pub const MAX_CHARS: usize = 20_000;
 // 무료 번역: API 키가 하나도 없을 때만 쓴다.
 pub const FREE_DAILY_LIMIT: usize = 10;
 const FREE_MAX_CHARS: usize = 5_000;
-const FREE_URL: &str = "https://deepz-api.izowooi.workers.dev/v1/translate";
+const FREE_URL: &str = "https://deepz-api.zowoo.uk/v1/translate";
 include!(concat!(env!("OUT_DIR"), "/app_secret.rs"));
+
+pub const KEY_GUIDE_URL: &str = "https://github.com/izowooi/crispy-app/tree/main/deepz#2-api-%ED%82%A4-%EB%84%A3%EA%B8%B0";
+const OWN_KEY_GUIDE: &str =
+    "본인의 API 키를 넣으면 횟수 제한 없이 쓸 수 있습니다.\n넣는 곳: Z 아이콘 → API 키 설정…\n안내: Z 아이콘 → API 키 발급 안내";
+
+/// 서버와 같은 기준(한국 시간 자정)으로 나눈 날짜 번호.
+fn today() -> u64 {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    (now + 9 * 3600) / 86_400
+}
+
+fn usage_path() -> Option<PathBuf> {
+    env_paths().into_iter().next().map(|p| p.with_file_name("free-usage"))
+}
+
+/// 오늘 쓴 횟수. 서버도 따로 세지만, 다 쓴 뒤에는 요청을 보내지 않고 바로 알려 주려고 앱에서도 센다.
+pub fn free_used_today() -> usize {
+    let saved = usage_path().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
+    match saved.split_once(' ') {
+        Some((day, count)) if day.parse() == Ok(today()) => count.trim().parse().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+fn set_free_used_today(count: usize) {
+    if let Some(path) = usage_path() {
+        let _ = std::fs::write(path, format!("{} {count}", today()));
+    }
+}
 
 /// 서명용 값을 넣고 빌드한 앱에서만 무료 번역을 쓸 수 있다.
 pub fn free_available() -> bool {
@@ -278,7 +307,10 @@ pub fn translate(
         }
         let length = text.chars().count();
         if length > FREE_MAX_CHARS {
-            return Err(format!("무료 번역은 한 번에 {FREE_MAX_CHARS}자까지입니다 (선택한 글 {length}자).\nAPI 키를 넣으면 {MAX_CHARS}자까지 번역할 수 있습니다."));
+            return Err(format!("무료 번역은 한 번에 {FREE_MAX_CHARS}자까지입니다 (선택한 글 {length}자).\n본인의 API 키를 넣으면 {MAX_CHARS}자까지 번역할 수 있습니다.\n안내: Z 아이콘 → API 키 발급 안내"));
+        }
+        if free_used_today() >= FREE_DAILY_LIMIT {
+            return Err(format!("오늘 무료 번역 {FREE_DAILY_LIMIT}회를 모두 썼습니다. 내일 다시 쓸 수 있습니다.\n{OWN_KEY_GUIDE}"));
         }
         providers.push(free_provider(text, target));
     }
@@ -322,6 +354,9 @@ fn stream(
                 .ok()
                 .and_then(|v| v["error"]["message"].as_str().map(String::from))
                 .unwrap_or_default();
+            if provider.free && code == 429 {
+                set_free_used_today(FREE_DAILY_LIMIT);
+            }
             if provider.free && !detail.is_empty() {
                 return Err(detail);
             }
@@ -333,14 +368,18 @@ fn stream(
     let mut extract = provider.extract;
     let mut label = provider.model.clone();
     if provider.free {
-        if response.header("x-deepz-format") == Some("openai") {
-            extract = extract_openai;
-        }
-        label = format!(
-            "{} · 무료 {}회 남음",
-            response.header("x-deepz-model").unwrap_or(""),
-            response.header("x-deepz-remaining").unwrap_or("?")
-        );
+        extract = match response.header("x-deepz-format") {
+            Some("openai") => extract_openai,
+            Some("gemini") => extract_gemini,
+            _ => extract_claude,
+        };
+        // 서버가 센 값이 있으면 그 값에 맞춘다.
+        let remaining = response
+            .header("x-deepz-remaining")
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or_else(|| FREE_DAILY_LIMIT.saturating_sub(free_used_today() + 1));
+        set_free_used_today(FREE_DAILY_LIMIT.saturating_sub(remaining));
+        label = format!("{} · 무료 {remaining}회 남음", response.header("x-deepz-model").unwrap_or(""));
     }
     for line in BufReader::new(response.into_reader()).lines() {
         let line = line.map_err(|e| format!("{} 응답이 끊겼습니다: {e}", provider.model))?;

@@ -16,6 +16,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # 무료 번역 서버의 서명용 값. 저장소에 넣지 않고 빌드할 때만 읽는다. 없으면 무료 번역이 빠진 앱이 된다.
 SECRET="${DEEPZ_APP_SECRET:-$(sed -n 's/^DEEPZ_APP_SECRET=//p' "$HOME/git/.auth/deepz.env" 2>/dev/null | head -1)}"
+[ -z "${DEEPZ_NO_SECRET:-}" ] || SECRET=""
 MASKED=""
 for byte in $(printf '%s' "$SECRET" | od -An -v -tu1); do MASKED="$MASKED$((byte ^ 90)), "; done
 printf 'enum AppSecret {\n    static let pad: UInt8 = 90\n    static let masked: [UInt8] = [%s]\n}\n' "$MASKED" > build/AppSecret.swift

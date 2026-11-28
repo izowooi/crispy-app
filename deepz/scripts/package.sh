@@ -11,8 +11,10 @@ WIN_ZIP="DeepZ-$VERSION-windows-x64.zip"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
-./mac/build.sh --no-install
-./windows/build.sh
+# 공개 배포 파일에는 무료 번역 서버의 서명용 값을 넣지 않는다. (실행 파일에서 꺼낼 수 있다.)
+
+DEEPZ_NO_SECRET=1 ./mac/build.sh --no-install
+DEEPZ_NO_SECRET=1 ./windows/build.sh
 mkdir -p dist
 rm -f "dist/$MAC_ZIP" "dist/$WIN_ZIP"
 

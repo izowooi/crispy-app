@@ -68,9 +68,11 @@ enum Config {
 // MARK: - 무료 번역 (API 키가 하나도 없을 때만 쓴다)
 
 enum FreeTier {
-    static let url = URL(string: "https://deepz-api.izowooi.workers.dev/v1/translate")!
+    static let url = URL(string: "https://deepz-api.zowoo.uk/v1/translate")!
     static let dailyLimit = 10
     static let maxLength = 5_000
+    static let guideURL = URL(string: "https://github.com/izowooi/crispy-app/tree/main/deepz#2-api-키-넣기".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!)!
+    static let ownKeyGuide = "본인의 API 키를 넣으면 횟수 제한 없이 쓸 수 있습니다.\n넣는 곳: Z 아이콘 → API 키 설정…\n안내: Z 아이콘 → API 키 발급 안내"
     /// 서명용 값은 빌드할 때 넣는다 (build.sh). 없이 빌드한 앱은 무료 번역을 쓰지 못한다.
     static let secret = Data(AppSecret.masked.map { $0 ^ AppSecret.pad })
     static var available: Bool { !secret.isEmpty }
@@ -86,6 +88,31 @@ enum FreeTier {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? Data(id.utf8).write(to: url, options: .atomic)
         return id
+    }
+
+    // 오늘 쓴 횟수. 서버도 따로 세지만, 다 쓴 뒤에는 요청을 보내지 않고 바로 알려 주려고 앱에서도 센다.
+    private static let usageURL = Config.envURL.deletingLastPathComponent().appendingPathComponent("free-usage")
+
+    /// 서버와 같은 기준(한국 시간 자정)으로 날짜를 나눈다.
+    private static func today() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    static func usedToday() -> Int {
+        let parts = ((try? String(contentsOf: usageURL, encoding: .utf8)) ?? "").split(separator: " ")
+        return parts.count == 2 && parts[0] == today() ? Int(parts[1]) ?? 0 : 0
+    }
+
+    static func setUsedToday(_ count: Int) {
+        try? Data("\(today()) \(count)".utf8).write(to: usageURL, options: .atomic)
+    }
+
+    static var limitMessage: String {
+        "오늘 무료 번역 \(dailyLimit)회를 모두 썼습니다. 내일 다시 쓸 수 있습니다.\n\(ownKeyGuide)"
     }
 
     static func request(text: String, target: TargetLanguage) throws -> URLRequest {
@@ -157,6 +184,15 @@ enum Translator {
         return delta["content"] as? String
     }
 
+    static func geminiDelta(_ json: Any) -> String? {
+        guard let root = json as? [String: Any],
+              let candidates = root["candidates"] as? [[String: Any]],
+              let content = candidates.first?["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]] else { return nil }
+        return parts.filter { $0["thought"] as? Bool != true }
+            .compactMap { $0["text"] as? String }.joined()
+    }
+
     /// 번역을 스트리밍하고, 사용한 모델 이름을 돌려준다.
     static func stream(_ text: String, target: TargetLanguage, env: [String: String] = Config.load(),
                        onDelta: @escaping @MainActor (String) -> Void) async throws -> String {
@@ -205,14 +241,7 @@ enum Translator {
                 // 번역에는 추론 단계가 필요 없고, 켜 두면 첫 글자가 몇 초씩 늦어진다.
                 "generationConfig": ["thinkingConfig": ["thinkingBudget": 0]],
             ])
-            providers.append((model, req, { json in
-                guard let root = json as? [String: Any],
-                      let candidates = root["candidates"] as? [[String: Any]],
-                      let content = candidates.first?["content"] as? [String: Any],
-                      let parts = content["parts"] as? [[String: Any]] else { return nil }
-                return parts.filter { $0["thought"] as? Bool != true }
-                    .compactMap { $0["text"] as? String }.joined()
-            }))
+            providers.append((model, req, geminiDelta))
         }
         // 키가 하나라도 있으면 그 키로 서비스에 바로 요청한다. 무료 서버는 키가 하나도 없을 때만 거친다.
         let free = providers.isEmpty
@@ -221,8 +250,9 @@ enum Translator {
                 throw TranslateError(message: "API 키를 찾지 못했습니다.\n메뉴 막대의 Z 아이콘 → API 키 설정… 에서 키를 넣어 주세요.")
             }
             guard text.count <= FreeTier.maxLength else {
-                throw TranslateError(message: "무료 번역은 한 번에 \(FreeTier.maxLength)자까지입니다 (선택한 글 \(text.count)자).\nAPI 키를 넣으면 \(maxLength)자까지 번역할 수 있습니다.")
+                throw TranslateError(message: "무료 번역은 한 번에 \(FreeTier.maxLength)자까지입니다 (선택한 글 \(text.count)자).\n본인의 API 키를 넣으면 \(maxLength)자까지 번역할 수 있습니다.\n안내: Z 아이콘 → API 키 발급 안내")
             }
+            guard FreeTier.usedToday() < FreeTier.dailyLimit else { throw TranslateError(message: FreeTier.limitMessage) }
             providers.append(("무료 번역", try FreeTier.request(text: text, target: target), claudeDelta))
         }
 
@@ -246,15 +276,23 @@ enum Translator {
                     let detail = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any])
                         .flatMap { $0["error"] as? [String: Any] }
                         .flatMap { $0["message"] as? String } ?? ""
+                    if free, status == 429 { FreeTier.setUsedToday(FreeTier.dailyLimit) }
                     throw TranslateError(message: free && !detail.isEmpty ? detail : "\(provider.model) 오류 (HTTP \(status)) \(detail)")
                 }
                 // 무료 서버는 어떤 서비스의 응답을 그대로 넘겼는지 헤더로 알려 준다.
                 var extract = provider.extract
                 var label = provider.model
                 if free {
-                    if http?.value(forHTTPHeaderField: "x-deepz-format") == "openai" { extract = openAIDelta }
+                    switch http?.value(forHTTPHeaderField: "x-deepz-format") {
+                    case "openai": extract = openAIDelta
+                    case "gemini": extract = geminiDelta
+                    default: extract = claudeDelta
+                    }
                     let model = http?.value(forHTTPHeaderField: "x-deepz-model") ?? ""
-                    let remaining = http?.value(forHTTPHeaderField: "x-deepz-remaining") ?? "?"
+                    // 서버가 센 값이 있으면 그 값에 맞춘다.
+                    let remaining = http?.value(forHTTPHeaderField: "x-deepz-remaining").flatMap(Int.init)
+                        ?? max(FreeTier.dailyLimit - FreeTier.usedToday() - 1, 0)
+                    FreeTier.setUsedToday(FreeTier.dailyLimit - remaining)
                     label = "\(model) · 무료 \(remaining)회 남음"
                 }
                 for try await line in bytes.lines {
@@ -768,7 +806,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                 action: nil, keyEquivalent: "")
         mode.isEnabled = false
         if FreeTier.available, !hasKey() {
-            let free = menu.addItem(withTitle: "무료 번역: 하루 \(FreeTier.dailyLimit)회 · API 키를 넣으면 제한 없음", action: nil, keyEquivalent: "")
+            let left = max(FreeTier.dailyLimit - FreeTier.usedToday(), 0)
+            let free = menu.addItem(withTitle: "무료 번역: 오늘 \(left)회 남음 (하루 \(FreeTier.dailyLimit)회) · 본인 API 키를 넣으면 제한 없음", action: nil, keyEquivalent: "")
             free.isEnabled = false
         }
         menu.addItem(.separator())
@@ -780,6 +819,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(withTitle: "정밀 감지 켜기 (손쉬운 사용 권한)…", action: #selector(requestAccessibility), keyEquivalent: "").target = self
         }
         menu.addItem(withTitle: "API 키 설정…", action: #selector(openKeySettings), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "API 키 발급 안내", action: #selector(openKeyGuide), keyEquivalent: "").target = self
         let login = menu.addItem(withTitle: "로그인 시 자동 실행", action: #selector(toggleLoginItem), keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -798,6 +838,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openKeySettings() { keyWindow.show() }
+
+    @objc private func openKeyGuide() { NSWorkspace.shared.open(FreeTier.guideURL) }
 
     @objc private func toggleLoginItem() {
         do {

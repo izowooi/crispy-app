@@ -1,6 +1,6 @@
 {
   // DeepZ 무료 번역 서버. API 키가 없는 사용자의 번역을 하루 정해진 횟수만큼 대신 처리한다.
-  // 비밀 값(ANTHROPIC_API_KEY, OPENAI_API_KEY, APP_SECRET)은 여기 적지 않고 `wrangler secret put` 으로 넣는다.
+  // 비밀 값(ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, APP_SECRET)은 여기 적지 않고 `wrangler secret put` 으로 넣는다.
   "name": "deepz-api",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
@@ -8,12 +8,19 @@
   "observability": { "enabled": true },
   "durable_objects": { "bindings": [{ "name": "COUNTER", "class_name": "Counter" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Counter"] }],
+  "routes": [{ "pattern": "deepz-api.zowoo.uk", "custom_domain": true }],
   "vars": {
-    "MODEL": "claude-haiku-5-5",
-    "OPENAI_MODEL": "gpt-6.2-sol",
+    // 앞에서부터 쓰고, 실패하면 다음으로 넘어간다. 키가 없는 서비스는 건너뛴다.
+    "PROVIDERS": "claude,openai,gemini",
+    "CLAUDE_MODEL": "claude-sonnet-5-5",
+    "CLAUDE_EFFORT": "medium",
+    "OPENAI_MODEL": "gpt-6.1-terra",
+    "OPENAI_EFFORT": "low",
+    "GEMINI_MODEL": "gemini-4-hydrogen",
     "DAILY_LIMIT": "10",
-    "IP_DAILY_LIMIT": "40",
+    "IP_DAILY_LIMIT": "400",
     "GLOBAL_DAILY_LIMIT": "3000",
+    "GLOBAL_MONTHLY_LIMIT": "30000",
     "MAX_CHARS": "5000"
   }
 }

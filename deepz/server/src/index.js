@@ -3,6 +3,10 @@
 import { DurableObject } from "cloudflare:workers";
 import { DailyCount, ID_PATTERN, TARGETS, dayKey, systemPrompt, verifySignature } from "./quota.js";
 
+// 한도에 걸린 사용자에게 자기 키를 쓰는 방법과 안내 위치를 알려 준다.
+const OWN_KEY_GUIDE = "본인의 API 키를 넣으면 횟수 제한 없이 쓸 수 있습니다.\n넣는 곳: Z 아이콘 → API 키 설정…\n안내: https://github.com/izowooi/crispy-app/tree/main/deepz#2-api-키-넣기";
+const tooLong = (maxChars) => `무료 번역은 한 번에 ${maxChars}자까지입니다.\n본인의 API 키를 넣으면 20000자까지 번역할 수 있습니다.\n안내: https://github.com/izowooi/crispy-app/tree/main/deepz#2-api-키-넣기`;
+
 function fail(status, code, message) {
   return Response.json({ error: { code, message } }, { status, headers: { "cache-control": "no-store" } });
 }
@@ -24,50 +28,73 @@ export class Counter extends DurableObject {
 // 오늘 한도를 넘긴 설치 ID·IP. 같은 인스턴스가 받는 다음 요청부터는 번역 요청을 보내지 않고 바로 거절한다.
 const denied = { day: "", names: new Set(), everyone: false };
 
-function claudeRequest(env, target, text) {
-  return fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2026-10-21",
-    },
-    body: JSON.stringify({
-      model: env.MODEL,
-      max_tokens: 8000,
-      stream: true,
-      system: systemPrompt(target),
-      messages: [{ role: "user", content: text }],
-      // 번역에는 추론이 필요 없다. 끄면 첫 글자가 가장 빨리 나온다.
-      thinking: { type: "disabled" },
-      output_config: { effort: "low" },
+// 서비스별 요청. 응답 스트림은 서비스가 준 그대로 앱에 넘기고, 앱이 `format` 을 보고 읽는다.
+const PROVIDERS = {
+  claude: {
+    ready: (env) => Boolean(env.ANTHROPIC_API_KEY),
+    model: (env) => env.CLAUDE_MODEL,
+    request: (env, target, text) => fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2026-10-21",
+        "anthropic-beta": "server-side-fallback-2026-07-01",
+      },
+      body: JSON.stringify({
+        model: env.CLAUDE_MODEL,
+        max_tokens: 16000,
+        stream: true,
+        system: systemPrompt(target),
+        messages: [{ role: "user", content: text }],
+        output_config: { effort: env.CLAUDE_EFFORT },
+        // 안전 분류기가 거절하면 서버가 다른 Claude 모델로 같은 요청을 다시 돌린다.
+        fallbacks: "default",
+      }),
     }),
-  });
-}
-
-function openAIRequest(env, target, text) {
-  return fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
-    body: JSON.stringify({
-      model: env.OPENAI_MODEL,
-      stream: true,
-      reasoning_effort: "low",
-      messages: [{ role: "system", content: systemPrompt(target) }, { role: "user", content: text }],
+  },
+  openai: {
+    ready: (env) => Boolean(env.OPENAI_API_KEY),
+    model: (env) => env.OPENAI_MODEL,
+    request: (env, target, text) => fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: env.OPENAI_MODEL,
+        stream: true,
+        reasoning_effort: env.OPENAI_EFFORT,
+        messages: [{ role: "system", content: systemPrompt(target) }, { role: "user", content: text }],
+      }),
     }),
-  });
-}
+  },
+  gemini: {
+    ready: (env) => Boolean(env.GEMINI_API_KEY),
+    model: (env) => env.GEMINI_MODEL,
+    request: (env, target, text) => fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:streamGenerateContent?alt=sse`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt(target) }] },
+          contents: [{ role: "user", parts: [{ text }] }],
+          // Gemini 4 는 추론을 끌 수 없어 가장 낮은 단계로 둔다. 그래도 첫 글자가 3초쯤 걸려 마지막 순서로 쓴다.
+          generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
+        }),
+      }),
+  },
+};
 
 async function translate(request, env, ctx) {
   // 앱은 Origin 을 보내지 않는다. 웹 페이지에서 부르는 요청은 받지 않는다.
   if (request.headers.has("origin")) return fail(403, "forbidden", "허용되지 않은 요청입니다.");
-  if (!env.APP_SECRET || !env.ANTHROPIC_API_KEY) return fail(503, "not_configured", "무료 번역 서버가 아직 준비되지 않았습니다.");
+  const order = env.PROVIDERS.split(",").filter((name) => PROVIDERS[name]?.ready(env));
+  if (!env.APP_SECRET || order.length === 0) return fail(503, "not_configured", "무료 번역 서버가 아직 준비되지 않았습니다.");
 
   const id = request.headers.get("x-deepz-id") ?? "";
   const maxChars = Number(env.MAX_CHARS);
   // 한글은 UTF-8 로 글자당 3바이트. 그보다 큰 본문은 읽기 전에 거절한다.
   if (Number(request.headers.get("content-length") ?? 0) > maxChars * 4 + 200) {
-    return fail(413, "too_long", `무료 번역은 한 번에 ${maxChars}자까지입니다. API 키를 넣으면 20000자까지 번역할 수 있습니다.`);
+    return fail(413, "too_long", tooLong(maxChars));
   }
   const body = await request.arrayBuffer();
   const now = Date.now();
@@ -83,18 +110,18 @@ async function translate(request, env, ctx) {
   }
   if (typeof text !== "string" || !text.trim() || !TARGETS.has(target)) return fail(400, "bad_request", "요청 형식이 잘못됐습니다.");
   if ([...text].length > maxChars) {
-    return fail(413, "too_long", `무료 번역은 한 번에 ${maxChars}자까지입니다. API 키를 넣으면 20000자까지 번역할 수 있습니다.`);
+    return fail(413, "too_long", tooLong(maxChars));
   }
 
   const day = dayKey(now);
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  const limitMessage = `오늘 무료 번역 ${env.DAILY_LIMIT}회를 모두 썼습니다. 내일 다시 쓸 수 있습니다.\nAPI 키를 넣으면 횟수 제한 없이 쓸 수 있습니다.`;
+  const limitMessage = `오늘 무료 번역 ${env.DAILY_LIMIT}회를 모두 썼습니다. 내일 다시 쓸 수 있습니다.\n${OWN_KEY_GUIDE}`;
   if (denied.day !== day) {
     denied.day = day;
     denied.names.clear();
     denied.everyone = false;
   }
-  if (denied.everyone) return fail(429, "busy", "오늘 무료 번역이 모두 소진됐습니다. API 키를 넣으면 바로 쓸 수 있습니다.");
+  if (denied.everyone) return fail(429, "busy", `무료 번역이 모두 소진됐습니다.\n${OWN_KEY_GUIDE}`);
   if (denied.names.has(id) || denied.names.has(ip)) return fail(429, "daily_limit", limitMessage);
 
   const counter = (name) => env.COUNTER.get(env.COUNTER.idFromName(name));
@@ -104,7 +131,7 @@ async function translate(request, env, ctx) {
   const [leftForId, leftForIp, first] = await Promise.all([
     byId.take(day, Number(env.DAILY_LIMIT)),
     byIp.take(day, Number(env.IP_DAILY_LIMIT)),
-    claudeRequest(env, target, text).catch(() => null),
+    PROVIDERS[order[0]].request(env, target, text).catch(() => null),
   ]);
   const refund = () => Promise.all([leftForId >= 0 && byId.refund(day), leftForIp >= 0 && byIp.refund(day)]);
   if (leftForId < 0 || leftForIp < 0) {
@@ -112,23 +139,27 @@ async function translate(request, env, ctx) {
     if (denied.names.size < 10_000) denied.names.add(leftForId < 0 ? id : ip);
     return fail(429, "daily_limit", limitMessage);
   }
-  // 전체 한도는 응답을 기다리게 하지 않고 뒤에서 센다.
-  ctx.waitUntil(counter("global").take(day, Number(env.GLOBAL_DAILY_LIMIT)).then((left) => {
-    if (left < 0) denied.everyone = true;
+  // 전체 한도(하루·한 달)는 응답을 기다리게 하지 않고 뒤에서 센다. 넘으면 다음 요청부터 거절한다.
+  ctx.waitUntil(Promise.all([
+    counter("global").take(day, Number(env.GLOBAL_DAILY_LIMIT)),
+    counter("global-month").take(day.slice(0, 7), Number(env.GLOBAL_MONTHLY_LIMIT)),
+  ]).then((left) => {
+    if (left.some((n) => n < 0)) denied.everyone = true;
   }));
 
-  let format = "claude", model = env.MODEL, upstream = first;
-  if (!upstream?.ok && env.OPENAI_API_KEY) {
-    console.log(`claude failed: ${upstream?.status ?? "network"}`);
-    format = "openai";
-    model = env.OPENAI_MODEL;
-    upstream = await openAIRequest(env, target, text).catch(() => null);
+  let format = order[0], upstream = first;
+  for (const name of order.slice(1)) {
+    if (upstream?.ok) break;
+    console.log(`${format} failed: ${upstream?.status ?? "network"}`);
+    format = name;
+    upstream = await PROVIDERS[name].request(env, target, text).catch(() => null);
   }
   if (!upstream?.ok) {
-    console.log(`upstream failed: ${upstream?.status ?? "network"}`);
+    console.log(`${format} failed: ${upstream?.status ?? "network"}`);
     ctx.waitUntil(refund());
     return fail(502, "upstream", "번역 서버가 잠시 응답하지 않습니다. 잠시 뒤 다시 시도해 주세요.");
   }
+  const model = PROVIDERS[format].model(env);
   // 받은 스트림을 그대로 흘려보낸다. 중간에서 풀어 보거나 모으지 않는다.
   return new Response(upstream.body, {
     headers: {
