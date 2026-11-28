@@ -2,16 +2,19 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod core;
+mod sha256;
 #[cfg(windows)]
 mod win;
 
 fn main() {
     // 점검용: deepz --translate "text" → 번역을 표준 출력으로 내보내고 종료
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 2 && args[1] == "--translate" {
+    // --translate-free 는 넣어 둔 키를 무시하고 무료 번역 경로로 보낸다.
+    if args.len() > 2 && (args[1] == "--translate" || args[1] == "--translate-free") {
         use std::io::Write;
         let text = args[2..].join(" ");
-        let result = core::translate(&text, &core::target_for(&text), &core::load_env(), &mut |delta| {
+        let env = if args[1] == "--translate-free" { Default::default() } else { core::load_env() };
+        let result = core::translate(&text, &core::target_for(&text), &env, &mut |delta| {
             print!("{delta}");
             std::io::stdout().flush().is_ok()
         });

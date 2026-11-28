@@ -6,7 +6,74 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
+use crate::sha256::{hex, hmac_sha256};
+
 pub const MAX_CHARS: usize = 20_000;
+
+// 무료 번역: API 키가 하나도 없을 때만 쓴다.
+pub const FREE_DAILY_LIMIT: usize = 10;
+const FREE_MAX_CHARS: usize = 5_000;
+const FREE_URL: &str = "https://deepz-api.izowooi.workers.dev/v1/translate";
+include!(concat!(env!("OUT_DIR"), "/app_secret.rs"));
+
+/// 서명용 값을 넣고 빌드한 앱에서만 무료 번역을 쓸 수 있다.
+pub fn free_available() -> bool {
+    !SECRET_MASKED.is_empty()
+}
+
+pub fn has_key(env: &HashMap<String, String>) -> bool {
+    [CLAUDE_KEY_NAMES, OPENAI_KEY_NAMES, GEMINI_KEY_NAMES].iter().any(|names| first_key(env, names).is_some())
+}
+
+/// 설치할 때 한 번 만드는 임의의 값. 하루 횟수를 세는 데만 쓴다.
+fn install_id() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let path = env_paths().into_iter().next().map(|p| p.with_file_name("id"));
+    if let Some(saved) = path.as_ref().and_then(|p| std::fs::read_to_string(p).ok()) {
+        let saved = saved.trim();
+        if saved.len() == 32 && saved.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+            return saved.to_string();
+        }
+    }
+    // 표준 라이브러리의 해시 시드는 실행할 때마다 운영체제가 주는 난수로 정해진다.
+    let random = || std::collections::hash_map::RandomState::new().build_hasher().finish();
+    let id = format!("{:016x}{:016x}", random(), random());
+    if let Some(path) = path {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, &id);
+    }
+    id
+}
+
+/// 서명 = HMAC-SHA256(앱 비밀값, "<시각>\n<설치 ID>\n" + 본문)
+fn sign(secret: &[u8], timestamp: &str, id: &str, body: &str) -> String {
+    hex(&hmac_sha256(secret, format!("{timestamp}\n{id}\n{body}").as_bytes()))
+}
+
+fn free_provider(text: &str, target: &Target) -> Provider {
+    let secret: Vec<u8> = SECRET_MASKED.iter().map(|b| b ^ SECRET_PAD).collect();
+    let body = json!({"text": text, "to": target.name});
+    let id = install_id();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+        .to_string();
+    Provider {
+        model: "무료 번역".into(),
+        url: FREE_URL.into(),
+        headers: vec![
+            ("x-deepz-sig", sign(&secret, &timestamp, &id, &body.to_string())),
+            ("x-deepz-id", id),
+            ("x-deepz-ts", timestamp),
+        ],
+        body,
+        extract: extract_claude,
+        free: true,
+    }
+}
 
 pub struct Target {
     pub name: &'static str,  // 프롬프트용
@@ -94,6 +161,8 @@ struct Provider {
     headers: Vec<(&'static str, String)>,
     body: Value,
     extract: fn(&Value) -> Option<String>,
+    /// 무료 서버를 거치는 요청. 응답 헤더가 모델과 남은 횟수를 알려 준다.
+    free: bool,
 }
 
 fn extract_claude(event: &Value) -> Option<String> {
@@ -152,6 +221,7 @@ fn providers(text: &str, target: &Target, env: &HashMap<String, String>) -> Vec<
                 "fallbacks": "default",
             }),
             extract: extract_claude,
+            free: false,
             model,
         });
     }
@@ -167,6 +237,7 @@ fn providers(text: &str, target: &Target, env: &HashMap<String, String>) -> Vec<
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": text}],
             }),
             extract: extract_openai,
+            free: false,
             model,
         });
     }
@@ -184,6 +255,7 @@ fn providers(text: &str, target: &Target, env: &HashMap<String, String>) -> Vec<
                 "generationConfig": {"thinkingConfig": {"thinkingBudget": 0}},
             }),
             extract: extract_gemini,
+            free: false,
             model,
         });
     }
@@ -198,9 +270,17 @@ pub fn translate(
     env: &HashMap<String, String>,
     on_delta: &mut dyn FnMut(&str) -> bool,
 ) -> Result<String, String> {
-    let providers = providers(text, target, env);
+    let mut providers = providers(text, target, env);
+    // 키가 하나라도 있으면 그 키로 서비스에 바로 요청한다. 무료 서버는 키가 하나도 없을 때만 거친다.
     if providers.is_empty() {
-        return Err("API 키를 찾지 못했습니다.\n키 파일에 ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY 중 하나를 넣어 주세요.".into());
+        if !free_available() {
+            return Err("API 키를 찾지 못했습니다.\n키 파일에 ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY 중 하나를 넣어 주세요.".into());
+        }
+        let length = text.chars().count();
+        if length > FREE_MAX_CHARS {
+            return Err(format!("무료 번역은 한 번에 {FREE_MAX_CHARS}자까지입니다 (선택한 글 {length}자).\nAPI 키를 넣으면 {MAX_CHARS}자까지 번역할 수 있습니다."));
+        }
+        providers.push(free_provider(text, target));
     }
     let tls = native_tls::TlsConnector::new().map_err(|e| e.to_string())?;
     let agent = ureq::AgentBuilder::new()
@@ -213,8 +293,8 @@ pub fn translate(
     for provider in providers {
         let mut emitted = false;
         match stream(&agent, &provider, on_delta, &mut emitted) {
-            Ok(()) if emitted => return Ok(provider.model),
-            Ok(()) => last_error = format!("{} 이(가) 빈 응답을 돌려줬습니다.", provider.model),
+            Ok(label) if emitted => return Ok(label),
+            Ok(_) => last_error = format!("{} 이(가) 빈 응답을 돌려줬습니다.", provider.model),
             // 취소됐거나 이미 글자가 나간 뒤에는 다른 모델로 넘어가지 않는다.
             Err(e) if e.is_empty() || emitted => return Err(e),
             Err(e) => last_error = e,
@@ -228,7 +308,7 @@ fn stream(
     provider: &Provider,
     on_delta: &mut dyn FnMut(&str) -> bool,
     emitted: &mut bool,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let mut request = agent.post(&provider.url).set("Content-Type", "application/json");
     for (name, value) in &provider.headers {
         request = request.set(name, value);
@@ -242,10 +322,26 @@ fn stream(
                 .ok()
                 .and_then(|v| v["error"]["message"].as_str().map(String::from))
                 .unwrap_or_default();
+            if provider.free && !detail.is_empty() {
+                return Err(detail);
+            }
             return Err(format!("{} 오류 (HTTP {code}) {detail}", provider.model));
         }
         Err(e) => return Err(format!("{} 연결 실패: {e}", provider.model)),
     };
+    // 무료 서버는 어떤 서비스의 응답을 그대로 넘겼는지 헤더로 알려 준다.
+    let mut extract = provider.extract;
+    let mut label = provider.model.clone();
+    if provider.free {
+        if response.header("x-deepz-format") == Some("openai") {
+            extract = extract_openai;
+        }
+        label = format!(
+            "{} · 무료 {}회 남음",
+            response.header("x-deepz-model").unwrap_or(""),
+            response.header("x-deepz-remaining").unwrap_or("?")
+        );
+    }
     for line in BufReader::new(response.into_reader()).lines() {
         let line = line.map_err(|e| format!("{} 응답이 끊겼습니다: {e}", provider.model))?;
         let Some(payload) = line.strip_prefix("data:").map(str::trim) else { continue };
@@ -253,14 +349,14 @@ fn stream(
             break;
         }
         let Ok(event) = serde_json::from_str::<Value>(payload) else { continue };
-        if let Some(delta) = (provider.extract)(&event).filter(|d| !d.is_empty()) {
+        if let Some(delta) = extract(&event).filter(|d| !d.is_empty()) {
             *emitted = true;
             if !on_delta(&delta) {
                 return Err(String::new());
             }
         }
     }
-    Ok(())
+    Ok(label)
 }
 
 #[cfg(test)]
@@ -287,6 +383,19 @@ mod tests {
         let env = parse_env("CLAUDE_KEY=alias\nANTHROPIC_API_KEY=main\n");
         assert_eq!(first_key(&env, CLAUDE_KEY_NAMES).unwrap(), "main");
         assert!(providers("hi", &target_for("hi"), &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn signs_free_requests_like_the_server_expects() {
+        // 서버(Web Crypto)와 같은 입력으로 미리 계산해 둔 값
+        let body = json!({"text": "hi", "to": "Korean"}).to_string();
+        assert_eq!(body, r#"{"text":"hi","to":"Korean"}"#);
+        assert_eq!(
+            sign(b"s3cret", "1800000000", "0123456789abcdef0123456789abcdef", &body),
+            "cd9929ae110e41b9b3c8f59badbd99ca6acf71c2bf339317f28d7a2b5f9d41a8"
+        );
+        let id = install_id();
+        assert!(id.len() == 32 && id.bytes().all(|b| b.is_ascii_hexdigit()));
     }
 
     #[test]

@@ -1,6 +1,7 @@
 // DeepZ — ⌘C,C 로 선택 영역을 번역해 주는 메뉴 막대 앱
 import AppKit
 import ApplicationServices
+import CryptoKit
 import ServiceManagement
 
 func log(_ message: String) {
@@ -64,6 +65,45 @@ enum Config {
     }
 }
 
+// MARK: - 무료 번역 (API 키가 하나도 없을 때만 쓴다)
+
+enum FreeTier {
+    static let url = URL(string: "https://deepz-api.izowooi.workers.dev/v1/translate")!
+    static let dailyLimit = 10
+    static let maxLength = 5_000
+    /// 서명용 값은 빌드할 때 넣는다 (build.sh). 없이 빌드한 앱은 무료 번역을 쓰지 못한다.
+    static let secret = Data(AppSecret.masked.map { $0 ^ AppSecret.pad })
+    static var available: Bool { !secret.isEmpty }
+
+    /// 설치할 때 한 번 만드는 임의의 값. 하루 횟수를 세는 데만 쓴다.
+    static func installID() -> String {
+        let url = Config.envURL.deletingLastPathComponent().appendingPathComponent("id")
+        if let saved = try? String(contentsOf: url, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+           saved.count == 32, saved.allSatisfy({ $0.isHexDigit && !$0.isUppercase }) {
+            return saved
+        }
+        let id = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data(id.utf8).write(to: url, options: .atomic)
+        return id
+    }
+
+    static func request(text: String, target: TargetLanguage) throws -> URLRequest {
+        let body = try JSONSerialization.data(withJSONObject: ["text": text, "to": target.name])
+        let id = installID()
+        let timestamp = String(Int(Date().timeIntervalSince1970))
+        var hmac = HMAC<SHA256>(key: SymmetricKey(data: secret))
+        hmac.update(data: Data("\(timestamp)\n\(id)\n".utf8))
+        hmac.update(data: body)
+        var request = URLRequest(url: url)
+        request.httpBody = body
+        request.setValue(id, forHTTPHeaderField: "x-deepz-id")
+        request.setValue(timestamp, forHTTPHeaderField: "x-deepz-ts")
+        request.setValue(hmac.finalize().map { String(format: "%02x", $0) }.joined(), forHTTPHeaderField: "x-deepz-sig")
+        return request
+    }
+}
+
 // MARK: - 번역
 
 struct TranslateError: LocalizedError {
@@ -104,10 +144,22 @@ enum Translator {
         """
     }
 
+    static func claudeDelta(_ json: Any) -> String? {
+        guard let root = json as? [String: Any], root["type"] as? String == "content_block_delta",
+              let delta = root["delta"] as? [String: Any], delta["type"] as? String == "text_delta" else { return nil }
+        return delta["text"] as? String
+    }
+
+    static func openAIDelta(_ json: Any) -> String? {
+        guard let root = json as? [String: Any],
+              let choices = root["choices"] as? [[String: Any]],
+              let delta = choices.first?["delta"] as? [String: Any] else { return nil }
+        return delta["content"] as? String
+    }
+
     /// 번역을 스트리밍하고, 사용한 모델 이름을 돌려준다.
-    static func stream(_ text: String, target: TargetLanguage,
+    static func stream(_ text: String, target: TargetLanguage, env: [String: String] = Config.load(),
                        onDelta: @escaping @MainActor (String) -> Void) async throws -> String {
-        let env = Config.load()
         var providers: [(model: String, request: URLRequest, extract: (Any) -> String?)] = []
         let system = systemPrompt(target)
 
@@ -128,11 +180,7 @@ enum Translator {
                 // 안전 분류기가 거절하면 서버가 다른 Claude 모델로 같은 요청을 다시 돌린다.
                 "fallbacks": "default",
             ])
-            providers.append((model, req, { json in
-                guard let root = json as? [String: Any], root["type"] as? String == "content_block_delta",
-                      let delta = root["delta"] as? [String: Any], delta["type"] as? String == "text_delta" else { return nil }
-                return delta["text"] as? String
-            }))
+            providers.append((model, req, claudeDelta))
         }
         if let key = Config.key(Config.openAIKeyNames, in: env) {
             let model = env["DEEPZ_OPENAI_MODEL"] ?? "gpt-6.2-sol"
@@ -144,12 +192,7 @@ enum Translator {
                 "reasoning_effort": "medium",
                 "messages": [["role": "system", "content": system], ["role": "user", "content": text]],
             ])
-            providers.append((model, req, { json in
-                guard let root = json as? [String: Any],
-                      let choices = root["choices"] as? [[String: Any]],
-                      let delta = choices.first?["delta"] as? [String: Any] else { return nil }
-                return delta["content"] as? String
-            }))
+            providers.append((model, req, openAIDelta))
         }
         if let key = Config.key(Config.geminiKeyNames, in: env) {
             let model = env["DEEPZ_GEMINI_MODEL"] ?? "gemini-4-hydrogen"
@@ -171,8 +214,16 @@ enum Translator {
                     .compactMap { $0["text"] as? String }.joined()
             }))
         }
-        guard !providers.isEmpty else {
-            throw TranslateError(message: "API 키를 찾지 못했습니다.\n메뉴 막대의 Z 아이콘 → API 키 설정… 에서 키를 넣어 주세요.")
+        // 키가 하나라도 있으면 그 키로 서비스에 바로 요청한다. 무료 서버는 키가 하나도 없을 때만 거친다.
+        let free = providers.isEmpty
+        if free {
+            guard FreeTier.available else {
+                throw TranslateError(message: "API 키를 찾지 못했습니다.\n메뉴 막대의 Z 아이콘 → API 키 설정… 에서 키를 넣어 주세요.")
+            }
+            guard text.count <= FreeTier.maxLength else {
+                throw TranslateError(message: "무료 번역은 한 번에 \(FreeTier.maxLength)자까지입니다 (선택한 글 \(text.count)자).\nAPI 키를 넣으면 \(maxLength)자까지 번역할 수 있습니다.")
+            }
+            providers.append(("무료 번역", try FreeTier.request(text: text, target: target), claudeDelta))
         }
 
         var lastError: Error = TranslateError(message: "번역에 실패했습니다.")
@@ -184,7 +235,8 @@ enum Translator {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.timeoutInterval = 30
                 let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                let http = response as? HTTPURLResponse
+                let status = http?.statusCode ?? 0
                 guard status == 200 else {
                     var body = Data()
                     for try await byte in bytes {
@@ -194,18 +246,27 @@ enum Translator {
                     let detail = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any])
                         .flatMap { $0["error"] as? [String: Any] }
                         .flatMap { $0["message"] as? String } ?? ""
-                    throw TranslateError(message: "\(provider.model) 오류 (HTTP \(status)) \(detail)")
+                    throw TranslateError(message: free && !detail.isEmpty ? detail : "\(provider.model) 오류 (HTTP \(status)) \(detail)")
+                }
+                // 무료 서버는 어떤 서비스의 응답을 그대로 넘겼는지 헤더로 알려 준다.
+                var extract = provider.extract
+                var label = provider.model
+                if free {
+                    if http?.value(forHTTPHeaderField: "x-deepz-format") == "openai" { extract = openAIDelta }
+                    let model = http?.value(forHTTPHeaderField: "x-deepz-model") ?? ""
+                    let remaining = http?.value(forHTTPHeaderField: "x-deepz-remaining") ?? "?"
+                    label = "\(model) · 무료 \(remaining)회 남음"
                 }
                 for try await line in bytes.lines {
                     guard line.hasPrefix("data:") else { continue }
                     let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
                     if payload == "[DONE]" { break }
                     guard let json = try? JSONSerialization.jsonObject(with: Data(payload.utf8)),
-                          let delta = provider.extract(json), !delta.isEmpty else { continue }
+                          let delta = extract(json), !delta.isEmpty else { continue }
                     emitted = true
                     await onDelta(delta)
                 }
-                if emitted { return provider.model }
+                if emitted { return label }
                 throw TranslateError(message: "\(provider.model) 이(가) 빈 응답을 돌려줬습니다.")
             } catch {
                 // 이미 글자가 나간 뒤거나 취소된 경우에는 다른 모델로 넘어가지 않는다.
@@ -444,7 +505,7 @@ final class KeyWindow: NSObject {
         window.isReleasedWhenClosed = false
 
         let intro = NSTextField(wrappingLabelWithString:
-            "가지고 있는 키만 붙여 넣으면 됩니다. 하나만 있어도 번역할 수 있습니다.\n키는 이 Mac 에만 저장됩니다.")
+            "가지고 있는 키만 붙여 넣으면 됩니다. 하나만 있어도 횟수 제한 없이 번역할 수 있습니다.\n키는 이 Mac 에만 저장되고, 번역할 글은 그 서비스로 바로 보냅니다.")
         intro.textColor = .secondaryLabelColor
 
         let grid = NSGridView()
@@ -570,11 +631,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateKeyMonitor()
         log("시작됨 (감지 방식: \(keyMonitor == nil ? "클립보드" : "키 입력"))")
 
-        // 키가 하나도 없으면 처음 켰을 때 바로 넣을 수 있게 설정 창을 띄운다.
-        let env = Config.load()
-        if [Config.claudeKeyNames, Config.openAIKeyNames, Config.geminiKeyNames].allSatisfy({ Config.key($0, in: env) == nil }) {
+        // 무료 번역을 쓸 수 없는 빌드에서는, 키가 없으면 처음 켰을 때 바로 넣을 수 있게 설정 창을 띄운다.
+        if !FreeTier.available, !hasKey() {
             keyWindow.show()
         }
+    }
+
+    private func hasKey() -> Bool {
+        let env = Config.load()
+        return [Config.claudeKeyNames, Config.openAIKeyNames, Config.geminiKeyNames].contains { Config.key($0, in: env) != nil }
     }
 
     /// 앱 아이콘과 같은 모양: 두 점을 Z 로 잇는 선.
@@ -702,6 +767,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let mode = menu.addItem(withTitle: keyMonitor != nil ? "감지 방식: 키 입력 (정밀)" : "감지 방식: 클립보드 (권한 없이 동작)",
                                 action: nil, keyEquivalent: "")
         mode.isEnabled = false
+        if FreeTier.available, !hasKey() {
+            let free = menu.addItem(withTitle: "무료 번역: 하루 \(FreeTier.dailyLimit)회 · API 키를 넣으면 제한 없음", action: nil, keyEquivalent: "")
+            free.isEnabled = false
+        }
         menu.addItem(.separator())
 
         let pause = menu.addItem(withTitle: "일시 정지", action: #selector(togglePause), keyEquivalent: "")
@@ -750,12 +819,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 // MARK: - 진입점
 
 let arguments = CommandLine.arguments
-if arguments.count > 2, arguments[1] == "--translate" {
-    // 점검용: DeepZ --translate "text" → 번역을 표준 출력으로 내보내고 종료
+if arguments.count > 2, arguments[1] == "--translate" || arguments[1] == "--translate-free" {
+    // 점검용: DeepZ --translate "text" → 번역을 표준 출력으로 내보내고 종료.
+    // --translate-free 는 넣어 둔 키를 무시하고 무료 번역 경로로 보낸다.
     let text = arguments.dropFirst(2).joined(separator: " ")
+    let env = arguments[1] == "--translate-free" ? [:] : Config.load()
     Task {
         do {
-            let model = try await Translator.stream(text, target: Translator.target(for: text)) { delta in
+            let model = try await Translator.stream(text, target: Translator.target(for: text), env: env) { delta in
                 print(delta, terminator: "")
             }
             print("\n[\(model)]")

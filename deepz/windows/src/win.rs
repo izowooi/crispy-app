@@ -675,6 +675,13 @@ unsafe fn tray_menu(hwnd: HWND) {
     };
     let checked = |on: bool| if on { MF_CHECKED } else { MF_UNCHECKED };
     add(MF_STRING | MF_GRAYED, 0, "글을 선택하고 Ctrl+C 를 두 번 누르면 번역합니다");
+    if core::free_available() && !core::has_key(&core::load_env()) {
+        add(
+            MF_STRING | MF_GRAYED,
+            0,
+            &format!("무료 번역: 하루 {}회 · API 키를 넣으면 제한 없음", core::FREE_DAILY_LIMIT),
+        );
+    }
     add(MF_SEPARATOR, 0, "");
     add(MF_STRING | checked(PAUSED.load(SeqCst)), CMD_PAUSE, "일시 정지");
     add(MF_STRING | checked(autostart_enabled()), CMD_AUTOSTART, "Windows 시작 시 자동 실행");
@@ -740,7 +747,7 @@ unsafe fn open_key_file() {
         }
         let _ = std::fs::write(
             &path,
-            "# DeepZ API 키. 하나만 있어도 됩니다. 저장하면 다음 번역부터 적용됩니다.\r\nANTHROPIC_API_KEY=\r\nOPENAI_API_KEY=\r\nGEMINI_API_KEY=\r\n",
+            "# DeepZ API 키. 하나만 있어도 횟수 제한 없이 번역합니다. 저장하면 다음 번역부터 적용됩니다.\r\nANTHROPIC_API_KEY=\r\nOPENAI_API_KEY=\r\nGEMINI_API_KEY=\r\n",
         );
     }
     ShellExecuteW(

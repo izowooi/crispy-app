@@ -14,7 +14,14 @@ test -n "$VERSION"
 rm -rf build
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-swiftc -O -swift-version 5 -target arm64-apple-macos13.0 Sources/main.swift -o "$APP/Contents/MacOS/DeepZ"
+# 무료 번역 서버의 서명용 값. 저장소에 넣지 않고 빌드할 때만 읽는다. 없으면 무료 번역이 빠진 앱이 된다.
+SECRET="${DEEPZ_APP_SECRET:-$(sed -n 's/^DEEPZ_APP_SECRET=//p' "$HOME/git/.auth/deepz.env" 2>/dev/null | head -1)}"
+MASKED=""
+for byte in $(printf '%s' "$SECRET" | od -An -v -tu1); do MASKED="$MASKED$((byte ^ 90)), "; done
+printf 'enum AppSecret {\n    static let pad: UInt8 = 90\n    static let masked: [UInt8] = [%s]\n}\n' "$MASKED" > build/AppSecret.swift
+[ -n "$SECRET" ] || echo "알림: DEEPZ_APP_SECRET 이 없어 무료 번역 없이 빌드합니다." >&2
+swiftc -O -swift-version 5 -target arm64-apple-macos13.0 Sources/main.swift build/AppSecret.swift -o "$APP/Contents/MacOS/DeepZ"
+rm build/AppSecret.swift
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
