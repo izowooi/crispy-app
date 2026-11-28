@@ -88,7 +88,7 @@ async function translate(request, env, ctx) {
   // 앱은 Origin 을 보내지 않는다. 웹 페이지에서 부르는 요청은 받지 않는다.
   if (request.headers.has("origin")) return fail(403, "forbidden", "허용되지 않은 요청입니다.");
   const order = env.PROVIDERS.split(",").filter((name) => PROVIDERS[name]?.ready(env));
-  if (!env.APP_SECRET || order.length === 0) return fail(503, "not_configured", "무료 번역 서버가 아직 준비되지 않았습니다.");
+  if (!(env.APP_SECRET || env.APP_SECRET_STORE) || order.length === 0) return fail(503, "not_configured", "무료 번역 서버가 아직 준비되지 않았습니다.");
 
   const id = request.headers.get("x-deepz-id") ?? "";
   const maxChars = Number(env.MAX_CHARS);
@@ -98,8 +98,12 @@ async function translate(request, env, ctx) {
   }
   const body = await request.arrayBuffer();
   const now = Date.now();
-  const signed = ID_PATTERN.test(id) && await verifySignature(
-    env.APP_SECRET, request.headers.get("x-deepz-ts") ?? "", id, body, request.headers.get("x-deepz-sig"), now);
+  // 서명 값은 배포 경로마다 다르다(직접 빌드, Mac App Store 판). 하나가 새면 그것만 바꾼다.
+  let signed = false;
+  for (const secret of [env.APP_SECRET_STORE, env.APP_SECRET]) {
+    signed ||= Boolean(secret) && ID_PATTERN.test(id) && await verifySignature(
+      secret, request.headers.get("x-deepz-ts") ?? "", id, body, request.headers.get("x-deepz-sig"), now);
+  }
   if (!signed) return fail(401, "unauthorized", "요청을 확인하지 못했습니다. 컴퓨터 시계가 맞는지 확인하고, DeepZ 를 최신 버전으로 바꿔 주세요.");
 
   let text, target;

@@ -41,7 +41,7 @@ API 키를 넣지 않은 DeepZ 사용자의 번역을 하루 정해진 횟수만
 ## 남이 쓰지 못하게 하는 장치
 
 - 서버가 프롬프트를 직접 만듭니다. 받는 것은 번역할 글과 언어(한국어/영어)뿐이라 번역 말고 다른 용도로 쓸 수 없습니다.
-- 요청마다 서명(HMAC-SHA256)과 시각이 붙어야 합니다. 서명용 값은 저장소에 없고 배포한 앱 안에만 들어 있습니다.
+- 요청마다 서명(HMAC-SHA256)과 시각이 붙어야 합니다. 서명용 값은 저장소에 없습니다. 직접 빌드용과 Mac App Store 판용 두 개가 있고, 하나가 새면 그것만 바꿉니다. GitHub 배포 파일에는 넣지 않습니다.
 - 웹 페이지에서 보낸 요청(`Origin` 헤더)은 받지 않습니다.
 - 설치·IP·전체 단위의 하루 한도가 있습니다.
 
@@ -58,6 +58,7 @@ npx wrangler secret put ANTHROPIC_API_KEY   # 필수
 npx wrangler secret put OPENAI_API_KEY      # 선택 (Claude 실패 때 대체)
 npx wrangler secret put GEMINI_API_KEY      # 선택
 npx wrangler secret put APP_SECRET          # 앱 빌드에 쓴 DEEPZ_APP_SECRET 과 같은 값
+npx wrangler secret put APP_SECRET_STORE    # Mac App Store 판 빌드에 쓴 DEEPZ_STORE_SECRET 과 같은 값
 npx wrangler tail           # 실시간 로그 (글 내용은 나오지 않음)
 ```
 
